@@ -65,7 +65,7 @@ This application requires a Google AI API key. For security, we use Streamlit's 
 
 Once you have completed the setup, run the following command in your terminal:
 
-streamlit run app.py
+python -m streamlit run app.py
 
 The application will open in your default web browser.
 
