@@ -103,16 +103,16 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
             - "education_level": A brief alignment description like "High", "Medium", or "Low".
             - "matched_skills": A list of up to 7 skills the candidate has that are required by the job.
             - "missing_skills": A list of up to 3 critical skills the candidate is missing.
-        recommendation_summary: A 2-sentence summary of the candidate's fit.
-        uses_action_verbs: A boolean (true or false).
-        has_quantifiable_results: A boolean (true or false).
-        "recommendation_score": An integer from 0 to 100, representing the overall confidence in recommending this candidate based on all factors combined (relevance, skills, experience, and resume quality).
+            - "recommendation_summary": A 2-sentence summary of the candidate's fit.
+            - "uses_action_verbs": A boolean (true or false).
+            - "has_quantifiable_results": A boolean (true or false).
+            - "recommendation_score": An integer from 0 to 100, representing the overall confidence in recommending this candidate based on all factors combined (relevance, skills, experience, and resume quality).
 
-        Resume: {resume}
-        Job Description: {jd}
-        """
+            Resume: {resume}
+            Job Description: {jd}
+            """
 
-        prompt = PromptTemplate(input_variables=["resume", "jd"], template=prompt_template_str)
+            prompt = PromptTemplate(input_variables=["resume", "jd"], template=prompt_template_str)
             chain = RunnableSequence(prompt, llm)
             
             try:
@@ -132,28 +132,28 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
                 word_count_status = get_word_count_status(resume_text)
                 repetition_status = get_repetition_status(resume_text)
 
-        st.divider()
-        st.header("📊 Analysis Results")
+                st.divider()
+                st.header("📊 Analysis Results")
 
-        # --- NEW FEATURE: RECOMMENDATION SCORE ---
-        recommendation_score = analysis_result.get('recommendation_score', 0)
-        if recommendation_score >= 75:
-            rec_color = "green"
-            rec_text = "Highly Recommended"
-        elif recommendation_score >= 50:
-            rec_color = "orange"
-            rec_text = "Worth Considering"
-        else:
-            rec_color = "red"
-            rec_text = "Not a Strong Fit"
+                # --- NEW FEATURE: RECOMMENDATION SCORE ---
+                recommendation_score = analysis_result.get('recommendation_score', 0)
+                if recommendation_score >= 75:
+                    rec_color = "green"
+                    rec_text = "Highly Recommended"
+                elif recommendation_score >= 50:
+                    rec_color = "orange"
+                    rec_text = "Worth Considering"
+                else:
+                    rec_color = "red"
+                    rec_text = "Not a Strong Fit"
 
-        st.subheader(f"Final Verdict: :{rec_color}[{rec_text}]")
-        st.progress(recommendation_score)
-        # --- END OF NEW FEATURE ---
+                st.subheader(f"Final Verdict: :{rec_color}[{rec_text}]")
+                st.progress(recommendation_score)
+                # --- END OF NEW FEATURE ---
 
-        res_col1, res_col2, res_col3, res_col4 = st.columns(4)
-        res_col1.metric("AI Relevance Score", f"{analysis_result.get('relevance_score', 0)}%")
-        res_col2.metric("Skills Match", analysis_result.get('skills_match', 'N/A'))
+                res_col1, res_col2, res_col3, res_col4 = st.columns(4)
+                res_col1.metric("AI Relevance Score", f"{analysis_result.get('relevance_score', 0)}%")
+                res_col2.metric("Skills Match", analysis_result.get('skills_match', 'N/A'))
                 res_col3.metric("Years' Experience", analysis_result.get('years_experience', 'N/A'))
                 res_col4.metric("Education Level", analysis_result.get('education_level', 'N/A'))
 
@@ -189,6 +189,7 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
                 report_text = f"""
 AI RESUME ANALYSIS REPORT
 =========================
+FINAL VERDICT: {rec_text} ({recommendation_score}%)
 AI RELEVANCE SCORE: {analysis_result.get('relevance_score', 0)}%
 SKILLS MATCH: {analysis_result.get('skills_match', 'N/A')}
 YEARS' EXPERIENCE: {analysis_result.get('years_experience', 'N/A')}
@@ -221,3 +222,4 @@ MISSING SKILLS:
                 st.text_area("Raw AI Response for debugging:", response_text, height=150)
             except Exception as e:
                 st.error(f"An unexpected error occurred: {e}")
+
