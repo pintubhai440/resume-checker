@@ -1,4 +1,6 @@
-﻿streamlit
-langchain
+streamlit
 langchain-google-genai
-langchain-core
+langchain
+collections-extended
+PyPDF2
+python-docx
