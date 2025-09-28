@@ -63,7 +63,7 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
     else:
         with st.spinner('Gemini is performing a deep analysis...'):
             llm = ChatGoogleGenerativeAI(
-                model="gemini-1.5-flash",
+                model="gemini-1.5-flash-latest",
                 temperature=0.3,
                 safety_settings={
                     HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
