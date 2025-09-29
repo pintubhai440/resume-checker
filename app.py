@@ -35,14 +35,9 @@ st.set_page_config(layout="wide", page_title="AI Resume Checker", page_icon="�
 st.title("🚀 AI Resume Checker")
 st.write("Analyze a resume against a job description to get instant, powerful insights.")
 
-# --- API KEY SETUP (Fixed) ---
-try:
-    GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
-    # Dono tarike se set karo
-    os.environ["GOOGLE_API_KEY"] = GOOGLE_API_KEY
-except Exception as e:
-    st.error(f"❌ API Key issue: {e}")
-    st.stop()
+# --- API KEY SETUP ---
+GOOGLE_API_KEY = "AIzaSyDmykH_xlDrjJmkuhAEjkx1JvN3-bGpFMw"  # Aapka API key
+os.environ["GOOGLE_API_KEY"] = GOOGLE_API_KEY
 
 # --- LAYOUT ---
 col1, col2 = st.columns(2, gap="large")
@@ -62,10 +57,10 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
     else:
         with st.spinner('Gemini is performing a deep analysis... This might take a moment.'):
             try:
-                # Model initialization (Fixed version)
+                # ✅ FIXED: Correct safety settings with numeric values
                 llm = ChatGoogleGenerativeAI(
-                    model="gemini-pro",
-                    google_api_key=GOOGLE_API_KEY,  # Explicitly pass karo
+                    model="gemini-pro",  # ✅ Correct model name
+                    google_api_key=GOOGLE_API_KEY,
                     temperature=0.3,
                     safety_settings={
                         "HARM_CATEGORY_HARASSMENT": "BLOCK_NONE",
@@ -112,7 +107,7 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
                     json_text = response_text[start_index:end_index]
                     analysis_result = json.loads(json_text)
                     
-                    # Display results (same as before)
+                    # Display results
                     st.divider()
                     st.header("📊 Analysis Results")
                     
@@ -127,7 +122,6 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
                     st.subheader(f"Final Verdict: :{rec_color}[{rec_text}]")
                     st.progress(recommendation_score / 100)
 
-                    # Rest of your display code...
                     res_col1, res_col2, res_col3, res_col4 = st.columns(4)
                     res_col1.metric("AI Relevance Score", f"{analysis_result.get('relevance_score', 0)}%")
                     res_col2.metric("Skills Match", analysis_result.get('skills_match', 'N/A'))
@@ -164,5 +158,3 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
                     
             except Exception as e:
                 st.error(f"Error aaya: {e}")
-                # Debugging ke liye
-                st.info("API Key check karo aur model name verify karo")
