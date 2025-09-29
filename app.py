@@ -36,7 +36,7 @@ st.title("🚀 AI Resume Checker")
 st.write("Analyze a resume against a job description to get instant, powerful insights.")
 
 # --- API KEY SETUP ---
-GOOGLE_API_KEY = "AIzaSyDmykH_xlDrjJmkuhAEjkx1JvN3-bGpFMw"  # Aapka API key
+GOOGLE_API_KEY = "AIzaSyDmykH_xlDrjJmkuhAEjkx1JvN3-bGpFMw"
 os.environ["GOOGLE_API_KEY"] = GOOGLE_API_KEY
 
 # --- LAYOUT ---
@@ -57,16 +57,17 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
     else:
         with st.spinner('Gemini is performing a deep analysis... This might take a moment.'):
             try:
-                # ✅ FIXED: Correct safety settings with numeric values
+                # ✅ FIXED: Correct numeric safety settings
                 llm = ChatGoogleGenerativeAI(
-                    model="gemini-pro",  # ✅ Correct model name
+                    model="gemini-pro",
                     google_api_key=GOOGLE_API_KEY,
                     temperature=0.3,
                     safety_settings={
-                        "HARM_CATEGORY_HARASSMENT": "BLOCK_NONE",
-                        "HARM_CATEGORY_HATE_SPEECH": "BLOCK_NONE", 
-                        "HARM_CATEGORY_SEXUALLY_EXPLICIT": "BLOCK_NONE",
-                        "HARM_CATEGORY_DANGEROUS_CONTENT": "BLOCK_NONE",
+                        # Numeric values use karo
+                        1: "BLOCK_NONE",  # HARM_CATEGORY_HARASSMENT
+                        2: "BLOCK_NONE",  # HARM_CATEGORY_HATE_SPEECH  
+                        3: "BLOCK_NONE",  # HARM_CATEGORY_SEXUALLY_EXPLICIT
+                        4: "BLOCK_NONE",  # HARM_CATEGORY_DANGEROUS_CONTENT
                     }
                 )
                 
@@ -77,9 +78,9 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
                 
                 {{
                     "relevance_score": 85,
-                    "skills_match": "80%",
+                    "skills_match": "80%", 
                     "years_experience": "5 years",
-                    "education_level": "High", 
+                    "education_level": "High",
                     "matched_skills": ["Python", "ML", "Data Analysis"],
                     "missing_skills": ["AWS", "Docker"],
                     "recommendation_summary": "Candidate shows strong technical skills but lacks cloud experience.",
