@@ -1,4 +1,4 @@
-https://resume-checker-hymyxgamv7cnpvk3xzokwn.streamlit.app/
+https://resume-checker-hlvndx9urvf8aesffoeizg.streamlit.app/
 
 This is a Streamlit web application that uses the Google Gemini Pro model to analyze a candidate's resume against a job description. It provides a comprehensive analysis, including a relevance score, skill gap analysis, and qualitative feedback on the resume's quality.
 
