@@ -1,5 +1,5 @@
 streamlit
 langchain
-langchain-openai
-openai
+langchain-google-genai
 collections-extended
+
