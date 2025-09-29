@@ -57,17 +57,17 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
     else:
         with st.spinner('Gemini is performing a deep analysis... This might take a moment.'):
             try:
-                # ✅ FIXED: Correct numeric safety settings
+                # ✅ FINAL FIX: All numeric values for safety settings
                 llm = ChatGoogleGenerativeAI(
                     model="gemini-pro",
                     google_api_key=GOOGLE_API_KEY,
                     temperature=0.3,
                     safety_settings={
-                        # Numeric values use karo
-                        1: "BLOCK_NONE",  # HARM_CATEGORY_HARASSMENT
-                        2: "BLOCK_NONE",  # HARM_CATEGORY_HATE_SPEECH  
-                        3: "BLOCK_NONE",  # HARM_CATEGORY_SEXUALLY_EXPLICIT
-                        4: "BLOCK_NONE",  # HARM_CATEGORY_DANGEROUS_CONTENT
+                        # Har jagah numeric values use karo
+                        1: 1,  # HARM_CATEGORY_HARASSMENT = BLOCK_NONE (1)
+                        2: 1,  # HARM_CATEGORY_HATE_SPEECH = BLOCK_NONE (1)  
+                        3: 1,  # HARM_CATEGORY_SEXUALLY_EXPLICIT = BLOCK_NONE (1)
+                        4: 1,  # HARM_CATEGORY_DANGEROUS_CONTENT = BLOCK_NONE (1)
                     }
                 )
                 
