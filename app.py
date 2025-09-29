@@ -1,3 +1,4 @@
+# Zaroori libraries ko import karna
 import streamlit as st
 import os
 import json
@@ -6,8 +7,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI, HarmBlockThreshold, H
 from langchain.prompts import PromptTemplate
 from collections import Counter
 
-# --- Helper Functions for Resume Analysis ---
-# Yeh functions resume ki quality check karte hain
+# --- Helper Functions (Resume ki quality check karne ke liye) ---
 
 def get_word_count_status(text):
     """Shabdon ki ginti check karta hai."""
@@ -35,13 +35,13 @@ def get_repetition_status(text):
     return "✅ Good"
 
 # --- UI SETUP ---
-# App ka layout aur title set karna
-st.set_page_config(layout="wide", page_title="AI Resume Checker")
+# App ka layout, title, aur icon set karna
+st.set_page_config(layout="wide", page_title="AI Resume Checker", page_icon="🚀")
 st.title("🚀 AI Resume Checker")
-st.write("Analyze a resume against a job description to get instant insights.")
+st.write("Analyze a resume against a job description to get instant, powerful insights.")
 
 # --- API KEY & MODEL SETUP ---
-# Streamlit secrets se API key lena
+# Streamlit secrets se API key ko surakshit tarike se lena
 try:
     GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
     os.environ["GOOGLE_API_KEY"] = GOOGLE_API_KEY
@@ -54,20 +54,20 @@ except (FileNotFoundError, KeyError):
 col1, col2 = st.columns(2, gap="large")
 with col1:
     st.header("📄 Job Requirements")
-    job_description = st.text_area("Job Description", height=350, label_visibility="collapsed")
+    job_description = st.text_area("Job Description", height=350, label_visibility="collapsed", placeholder="Paste the job description here...")
 with col2:
     st.header("👤 Resume Content")
-    resume_text = st.text_area("Paste Resume Text", height=350, label_visibility="collapsed")
+    resume_text = st.text_area("Paste Resume Text", height=350, label_visibility="collapsed", placeholder="Paste the candidate's resume here...")
 
 # --- ANALYSIS BUTTON & LOGIC ---
 if st.button("Analyze with Gemini AI", use_container_width=True, type="primary"):
     if not resume_text or not job_description:
-        st.warning("Please provide both Job Description and Resume text.")
+        st.warning("Please provide both the Job Description and the Resume text.")
     else:
-        with st.spinner('Gemini is performing a deep analysis...'):
+        with st.spinner('Gemini is performing a deep analysis... This might take a moment.'):
             # Google Gemini AI model ko set karna
             llm = ChatGoogleGenerativeAI(
-                model="gemini-pro", # Stable model ka istemal
+                model="gemini-pro", # Stable aur powerful model ka istemal
                 temperature=0.3,
                 safety_settings={
                     HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
@@ -77,30 +77,31 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
                 },
             )
             
-            # AI ko batana ki use kya karna hai (prompt)
+            # AI ko batana ki use kya karna hai (ek detailed prompt)
             prompt_template_str = """
-            You are an expert AI hiring assistant. Analyze the resume and job description.
-            Provide ONLY a raw JSON response with these keys:
-            - "relevance_score": An integer (0-100).
-            - "skills_match": A percentage string ("85%").
-            - "years_experience": A string for relevant experience.
-            - "education_level": A brief description ("High", "Medium", "Low").
-            - "matched_skills": A list of up to 7 matching skills.
-            - "missing_skills": A list of up to 3 critical missing skills.
-            - "recommendation_summary": A 2-sentence summary.
-            - "uses_action_verbs": A boolean.
-            - "has_quantifiable_results": A boolean.
-            - "recommendation_score": An integer (0-100) for overall recommendation confidence.
+            You are an expert AI hiring assistant. Your task is to analyze a resume against a job description.
+            The current date is September 21, 2025.
+            Provide ONLY a raw JSON response with the following keys. Do not add any extra text or formatting before or after the JSON object.
+            - "relevance_score": An integer (0-100) representing how relevant the resume is to the job.
+            - "skills_match": A percentage string (e.g., "85%") for technical skills overlap.
+            - "years_experience": A string for the candidate's relevant years of experience.
+            - "education_level": A brief description of educational alignment ("High", "Medium", "Low").
+            - "matched_skills": A list of up to 7 skills from the resume that match the job description.
+            - "missing_skills": A list of up to 3 critical skills from the job description missing in the resume.
+            - "recommendation_summary": A concise, 2-sentence summary explaining why the candidate is a good or bad fit.
+            - "uses_action_verbs": A boolean (true if the resume uses strong action verbs).
+            - "has_quantifiable_results": A boolean (true if the resume shows measurable achievements, e.g., "increased sales by 20%").
+            - "recommendation_score": An integer (0-100) for the overall confidence in recommending this candidate, considering all factors.
 
             Resume: {resume}
             Job Description: {jd}
             """
             prompt = PromptTemplate(input_variables=["resume", "jd"], template=prompt_template_str)
             
-            # LangChain ka istemal karke prompt aur AI model ko jodna
+            # LangChain ka istemal karke prompt aur AI model ko jodna (naya aur behtar tarika)
             chain = prompt | llm
             
-            response_text = "" # Error handling ke liye variable ko initialize karna
+            response_text = "" # Error handling ke liye variable ko pehle se initialize karna
             try:
                 # AI ko call karna
                 response = chain.invoke({"resume": resume_text, "jd": job_description})
@@ -114,10 +115,11 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
                     json_text = response_text[start_index:end_index]
                     analysis_result = json.loads(json_text)
                     
-                    # Results ko screen par dikhana
+                    # --- Results ko screen par dikhana ---
                     st.divider()
                     st.header("📊 Analysis Results")
 
+                    # Final Verdict section (aapka naya feature)
                     recommendation_score = analysis_result.get('recommendation_score', 0)
                     if recommendation_score >= 75:
                         rec_color, rec_text = "green", "Highly Recommended"
@@ -129,6 +131,7 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
                     st.subheader(f"Final Verdict: :{rec_color}[{rec_text}]")
                     st.progress(recommendation_score / 100)
 
+                    # Mukhya scores
                     res_col1, res_col2, res_col3, res_col4 = st.columns(4)
                     res_col1.metric("AI Relevance Score", f"{analysis_result.get('relevance_score', 0)}%")
                     res_col2.metric("Skills Match", analysis_result.get('skills_match', 'N/A'))
@@ -160,9 +163,9 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
                     add_col4.metric("Quantifiable Results?", quant_results)
 
                 else:
-                    st.error("AI se sahi jawab nahi mila. Raw response neeche dekhein.")
-                    st.write("Raw AI Response:", response_text)
+                    st.error("AI se sahi JSON format mein jawab nahi mila. Raw response neeche dekhein.")
+                    st.code(response_text, language="text")
             except Exception as e:
                 st.error(f"Ek anjaan error aaya: {e}")
-                st.write("AI ka raw response (agar available ho):", response_text)
+                st.code(f"AI ka raw response (agar available ho):\n{response_text}", language="text")
 
