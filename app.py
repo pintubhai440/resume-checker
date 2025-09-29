@@ -3,8 +3,7 @@ import streamlit as st
 import os
 import json
 import re 
-# FIX: Google ki jagah OpenAI ki library import ki gayi hai
-from langchain_openai import ChatOpenAI
+from langchain_google_genai import ChatGoogleGenerativeAI, HarmBlockThreshold, HarmCategory
 from langchain.prompts import PromptTemplate
 from collections import Counter
 
@@ -36,43 +35,62 @@ def get_repetition_status(text):
     return "✅ Good"
 
 # --- UI SETUP ---
+# App ka layout, title, aur icon set karna
 st.set_page_config(layout="wide", page_title="AI Resume Checker", page_icon="🚀")
 st.title("🚀 AI Resume Checker")
 st.write("Analyze a resume against a job description to get instant, powerful insights.")
 
-# --- API KEY SETUP ---
-# FIX: Ab hum OpenAI ki API key dhoondh rahe hain
+# --- API KEY & MODEL SETUP ---
+# Streamlit secrets se API key ko surakshit tarike se lena
 try:
-    OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
-    os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
+    GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
+    os.environ["GOOGLE_API_KEY"] = GOOGLE_API_KEY
 except (FileNotFoundError, KeyError):
-    st.error("🤫 OpenAI API Key not found. Please add it to your Streamlit secrets.")
+    st.error("🤫 Google API Key not found. Please add it to your Streamlit secrets.")
     st.stop()
 
 # --- LAYOUT ---
+# Do columns banana - ek job description ke liye, ek resume ke liye
 col1, col2 = st.columns(2, gap="large")
 with col1:
     st.header("📄 Job Requirements")
-    job_description = st.text_area("Job Description", height=350, label_visibility="collapsed", placeholder="Paste the job description here...", key="job_description_input")
+    job_description = st.text_area("Job Description", height=350, label_visibility="collapsed", placeholder="Paste the job description here...", key="job_desc")
 with col2:
     st.header("👤 Resume Content")
-    resume_text = st.text_area("Paste Resume Text", height=350, label_visibility="collapsed", placeholder="Paste the candidate's resume here...", key="resume_text_input")
+    resume_text = st.text_area("Paste Resume Text", height=350, label_visibility="collapsed", placeholder="Paste the candidate's resume here...", key="resume_text")
 
 # --- ANALYSIS BUTTON & LOGIC ---
-if st.button("Analyze with AI", use_container_width=True, type="primary"):
+if st.button("Analyze with Gemini AI", use_container_width=True, type="primary"):
     if not resume_text or not job_description:
         st.warning("Please provide both the Job Description and the Resume text.")
     else:
-        with st.spinner('The AI is performing a deep analysis...'):
-            # FIX: Google ki jagah OpenAI ka model set kiya gaya hai
-            llm = ChatOpenAI(
-                model_name="gpt-3.5-turbo", 
-                temperature=0.3
+        with st.spinner('Gemini is performing a deep analysis... This might take a moment.'):
+            # Google Gemini AI model ko set karna
+            llm = ChatGoogleGenerativeAI(
+                model="gemini-pro",
+                temperature=0.3,
+                safety_settings={
+                    HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
+                    HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
+                    HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
+                    HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
+                },
             )
             
+            # AI ko batana ki use kya karna hai (ek detailed prompt)
             prompt_template_str = """
-            You are an expert AI hiring assistant. Analyze the resume against the job description.
-            Provide ONLY a raw JSON response with these keys: "relevance_score", "skills_match", "years_experience", "education_level", "matched_skills", "missing_skills", "recommendation_summary", "uses_action_verbs", "has_quantifiable_results", "recommendation_score".
+            You are an expert AI hiring assistant. Your task is to analyze a resume against a job description.
+            Provide ONLY a raw JSON response with the following keys. Do not add any extra text or formatting before or after the JSON object.
+            - "relevance_score": An integer (0-100).
+            - "skills_match": A percentage string (e.g., "85%").
+            - "years_experience": A string for the candidate's relevant years of experience.
+            - "education_level": A brief description of educational alignment ("High", "Medium", "Low").
+            - "matched_skills": A list of up to 7 matching skills.
+            - "missing_skills": A list of up to 3 critical missing skills.
+            - "recommendation_summary": A concise, 2-sentence summary.
+            - "uses_action_verbs": A boolean.
+            - "has_quantifiable_results": A boolean.
+            - "recommendation_score": An integer (0-100) for the overall confidence in recommending this candidate.
 
             Resume: {resume}
             Job Description: {jd}
@@ -112,30 +130,6 @@ if st.button("Analyze with AI", use_container_width=True, type="primary"):
                     res_col2.metric("Skills Match", analysis_result.get('skills_match', 'N/A'))
                     res_col3.metric("Years' Experience", analysis_result.get('years_experience', 'N/A'))
                     res_col4.metric("Education Level", analysis_result.get('education_level', 'N/A'))
-
-                    st.subheader("Skills Analysis")
-                    skill_col1, skill_col2 = st.columns(2)
-                    with skill_col1:
-                        st.success("✅ Matched Skills")
-                        st.write(", ".join(analysis_result.get('matched_skills', ["Not found"])))
-                    with skill_col2:
-                        st.warning("❗️ Missing Skills")
-                        st.write(", ".join(analysis_result.get('missing_skills', ["None found"])))
-
-                    st.subheader("💡 AI Recommendation")
-                    st.info(analysis_result.get('recommendation_summary', 'No summary available.'))
-                    
-                    st.subheader("Resume Quality Checks")
-                    word_count_status = get_word_count_status(resume_text)
-                    repetition_status = get_repetition_status(resume_text)
-                    action_verbs = "✅ Yes" if analysis_result.get('uses_action_verbs') else "⚠️ No"
-                    quant_results = "✅ Yes" if analysis_result.get('has_quantifiable_results') else "⚠️ No"
-                    
-                    add_col1, add_col2, add_col3, add_col4 = st.columns(4)
-                    add_col1.metric("Word Count", word_count_status.split()[0], " ".join(word_count_status.split()[1:]))
-                    add_col2.metric("Repetition", repetition_status.split()[0], " ".join(repetition_status.split()[1:]))
-                    add_col3.metric("Uses Action Verbs?", action_verbs)
-                    add_col4.metric("Quantifiable Results?", quant_results)
                 else:
                     st.error("AI did not return a valid JSON response. See raw response below.")
                     st.code(response_text, language="text")
