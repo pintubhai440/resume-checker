@@ -2,12 +2,14 @@
 import streamlit as st
 import os
 import json
-import re 
+import re
 from langchain_google_genai import ChatGoogleGenerativeAI, HarmBlockThreshold, HarmCategory
 from langchain.prompts import PromptTemplate
 from collections import Counter
 
 # --- Helper Functions (Resume ki quality check karne ke liye) ---
+# Note: Ye functions aapne banaye hain lekin abhi app me istemal nahi ho rahe hain.
+# Aap inhein future me jod sakte hain.
 
 def get_word_count_status(text):
     """Shabdon ki ginti check karta hai."""
@@ -65,45 +67,46 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
         st.warning("Please provide both the Job Description and the Resume text.")
     else:
         with st.spinner('Gemini is performing a deep analysis... This might take a moment.'):
-            # Google Gemini AI model ko set karna
-            llm = ChatGoogleGenerativeAI(
-                model="gemini-pro",
-                temperature=0.3,
-                safety_settings={
-                    HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
-                    HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
-                    HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
-                    HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
-                },
-            )
-            
-            # AI ko batana ki use kya karna hai (ek detailed prompt)
-            prompt_template_str = """
-            You are an expert AI hiring assistant. Your task is to analyze a resume against a job description.
-            Provide ONLY a raw JSON response with the following keys. Do not add any extra text or formatting before or after the JSON object.
-            - "relevance_score": An integer (0-100).
-            - "skills_match": A percentage string (e.g., "85%").
-            - "years_experience": A string for the candidate's relevant years of experience.
-            - "education_level": A brief description of educational alignment ("High", "Medium", "Low").
-            - "matched_skills": A list of up to 7 matching skills.
-            - "missing_skills": A list of up to 3 critical missing skills.
-            - "recommendation_summary": A concise, 2-sentence summary.
-            - "uses_action_verbs": A boolean.
-            - "has_quantifiable_results": A boolean.
-            - "recommendation_score": An integer (0-100) for the overall confidence in recommending this candidate.
-
-            Resume: {resume}
-            Job Description: {jd}
-            """
-            prompt = PromptTemplate(input_variables=["resume", "jd"], template=prompt_template_str)
-            
-            chain = prompt | llm
-            
-            response_text = "" 
+            response_text = ""
             try:
+                # Google Gemini AI model ko set karna
+                llm = ChatGoogleGenerativeAI(
+                    model="gemini-1.5-pro-latest",  # <<< YAHAN BADLAV KIYA GAYA HAI
+                    temperature=0.3,
+                    safety_settings={
+                        HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
+                        HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
+                        HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
+                        HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
+                    },
+                )
+                
+                # AI ko batana ki use kya karna hai (ek detailed prompt)
+                prompt_template_str = """
+                You are an expert AI hiring assistant. Your task is to analyze a resume against a job description.
+                Provide ONLY a raw JSON response with the following keys. Do not add any extra text or formatting before or after the JSON object.
+                - "relevance_score": An integer (0-100).
+                - "skills_match": A percentage string (e.g., "85%").
+                - "years_experience": A string for the candidate's relevant years of experience.
+                - "education_level": A brief description of educational alignment ("High", "Medium", "Low").
+                - "matched_skills": A list of up to 7 matching skills.
+                - "missing_skills": A list of up to 3 critical missing skills.
+                - "recommendation_summary": A concise, 2-sentence summary.
+                - "uses_action_verbs": A boolean.
+                - "has_quantifiable_results": A boolean.
+                - "recommendation_score": An integer (0-100) for the overall confidence in recommending this candidate.
+
+                Resume: {resume}
+                Job Description: {jd}
+                """
+                prompt = PromptTemplate(input_variables=["resume", "jd"], template=prompt_template_str)
+                
+                chain = prompt | llm
+                
                 response = chain.invoke({"resume": resume_text, "jd": job_description})
                 response_text = response.content
                 
+                # Kabhi kabhi AI response me ```json ... ``` jod deta hai, use hatane ke liye
                 start_index = response_text.find('{')
                 end_index = response_text.rfind('}') + 1
 
@@ -133,7 +136,7 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
                 else:
                     st.error("AI did not return a valid JSON response. See raw response below.")
                     st.code(response_text, language="text")
+
             except Exception as e:
                 st.error(f"An unexpected error occurred: {e}")
                 st.code(f"Raw AI response (if available):\n{response_text}", language="text")
-
