@@ -4,7 +4,7 @@ import json
 import re 
 from langchain_google_genai import ChatGoogleGenerativeAI, HarmBlockThreshold, HarmCategory
 from langchain.prompts import PromptTemplate
-from langchain_core.runnables import RunnableSequence
+from langchain.schema.runnable import RunnablePassthrough
 from collections import Counter
 
 # --- Helper Functions for Resume Analysis ---
@@ -63,7 +63,7 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
     else:
         with st.spinner('Gemini is performing a deep analysis...'):
             llm = ChatGoogleGenerativeAI(
-                model="gemini-pro", # Using the stable gemini-pro model to fix the 404 error
+                model="gemini-pro",
                 temperature=0.3,
                 safety_settings={
                     HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
@@ -92,11 +92,14 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
             Job Description: {jd}
             """
             prompt = PromptTemplate(input_variables=["resume", "jd"], template=prompt_template_str)
-            chain = RunnableSequence(prompt, llm)
+            
+            # Fixed chain implementation using the pipe operator
+            chain = prompt | llm
             
             try:
                 response = chain.invoke({"resume": resume_text, "jd": job_description})
                 response_text = response.content
+                
                 start_index = response_text.find('{')
                 end_index = response_text.rfind('}') + 1
 
@@ -116,7 +119,7 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
                         rec_color, rec_text = "red", "Not a Strong Fit"
 
                     st.subheader(f"Final Verdict: :{rec_color}[{rec_text}]")
-                    st.progress(recommendation_score)
+                    st.progress(recommendation_score / 100)
 
                     res_col1, res_col2, res_col3, res_col4 = st.columns(4)
                     res_col1.metric("AI Relevance Score", f"{analysis_result.get('relevance_score', 0)}%")
@@ -128,10 +131,18 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
                     skill_col1, skill_col2 = st.columns(2)
                     with skill_col1:
                         st.success("✅ Matched Skills")
-                        st.write(", ".join(analysis_result.get('matched_skills', ["Not found"])))
+                        matched_skills = analysis_result.get('matched_skills', ["Not found"])
+                        if isinstance(matched_skills, list):
+                            st.write(", ".join(matched_skills))
+                        else:
+                            st.write(matched_skills)
                     with skill_col2:
                         st.warning("❗️ Missing Skills")
-                        st.write(", ".join(analysis_result.get('missing_skills', ["None found"])))
+                        missing_skills = analysis_result.get('missing_skills', ["None found"])
+                        if isinstance(missing_skills, list):
+                            st.write(", ".join(missing_skills))
+                        else:
+                            st.write(missing_skills)
 
                     st.subheader("💡 AI Recommendation")
                     st.info(analysis_result.get('recommendation_summary', 'No summary available.'))
@@ -151,22 +162,22 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
                     st.divider()
                     # Create report text
                     report_text = f"""
-                    AI RESUME ANALYSIS REPORT
-                    =========================
-                    FINAL VERDICT: {rec_text} (Score: {recommendation_score}%)
-                    AI RELEVANCE SCORE: {analysis_result.get('relevance_score', 0)}%
-                    SKILLS MATCH: {analysis_result.get('skills_match', 'N/A')}
-                    YEARS' EXPERIENCE: {analysis_result.get('years_experience', 'N/A')}
+AI RESUME ANALYSIS REPORT
+=========================
+FINAL VERDICT: {rec_text} (Score: {recommendation_score}%)
+AI RELEVANCE SCORE: {analysis_result.get('relevance_score', 0)}%
+SKILLS MATCH: {analysis_result.get('skills_match', 'N/A')}
+YEARS' EXPERIENCE: {analysis_result.get('years_experience', 'N/A')}
 
-                    RECOMMENDATION:
-                    {analysis_result.get('recommendation_summary', '')}
+RECOMMENDATION:
+{analysis_result.get('recommendation_summary', '')}
 
-                    MATCHED SKILLS:
-                    - {', '.join(analysis_result.get('matched_skills', []))}
+MATCHED SKILLS:
+- {', '.join(analysis_result.get('matched_skills', []))}
 
-                    MISSING SKILLS:
-                    - {', '.join(analysis_result.get('missing_skills', []))}
-                    """
+MISSING SKILLS:
+- {', '.join(analysis_result.get('missing_skills', []))}
+"""
                     st.download_button(
                         label="⬇️ Download Full Report",
                         data=report_text,
@@ -175,7 +186,12 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
                     )
 
                 else:
-                    raise ValueError("No valid JSON found in the AI's response.")
+                    st.error("No valid JSON found in the AI's response.")
+                    st.write("Raw response for debugging:", response_text)
+            except json.JSONDecodeError as e:
+                st.error(f"Failed to parse JSON response: {e}")
+                st.write("Raw response for debugging:", response_text)
             except Exception as e:
                 st.error(f"An unexpected error occurred: {e}")
+                st.write("Raw response for debugging:", response_text)
 
