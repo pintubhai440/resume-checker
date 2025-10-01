@@ -3,7 +3,7 @@ import streamlit as st
 import os
 import json
 import re
-import google.generativeai as genai # <-- Hum ab Google ki native library use kar rahe hain
+import google.generativeai as genai
 
 # --- UI SETUP ---
 st.set_page_config(layout="wide", page_title="AI Resume Checker", page_icon="🚀")
@@ -14,7 +14,7 @@ st.write("Analyze a resume against a job description to get instant, powerful in
 # Suraksha ke liye API key ko Streamlit ke secrets se load karna
 try:
     GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
-    genai.configure(api_key=GOOGLE_API_KEY) # <-- Library ko configure karne ka naya tarika
+    genai.configure(api_key=GOOGLE_API_KEY)
 except (FileNotFoundError, KeyError):
     st.error("🤫 Google API Key not found. Please add it to your Streamlit secrets.")
     st.stop()
@@ -34,13 +34,12 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
         st.warning("Please provide both the Job Description and the Resume text.")
     else:
         with st.spinner('Gemini is performing a deep analysis... This might take a moment.'):
-            # --- YAHAN SABSE BADA BADLAV HAI ---
             
-            # Model ko set karna (naye tarike se)
-            model = genai.GenerativeModel('gemini-pro')
+            # Model ko set karna
+            # NOTE: Hum 'gemini-1.0-pro' ka istemal kar rahe hain kyonki yeh naye accounts ke liye zyada reliable hai.
+            model = genai.GenerativeModel('gemini-1.0-pro')
 
             # AI ko batana ki use kya karna hai (ek detailed prompt)
-            # Hum ab LangChain PromptTemplate ki jagah simple f-string ka use kar rahe hain
             full_prompt = f"""
             You are an expert AI hiring assistant. Your task is to analyze a resume against a job description.
             Provide ONLY a raw JSON response with the following keys. Do not add any extra text or formatting before or after the JSON object.
@@ -61,12 +60,11 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
             
             response_text = ""
             try:
-                # API ko call karne ka naya tarika
+                # API ko call karna
                 response = model.generate_content(full_prompt)
                 response_text = response.text
                 
                 # JSON ko response se nikalna
-                # Yeh '```json' aur '```' ke beech ka content nikalega
                 match = re.search(r"```json\s*(\{.*?\})\s*```", response_text, re.DOTALL)
                 if match:
                     json_text = match.group(1)
@@ -98,7 +96,7 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
                     res_col1, res_col2, res_col3, res_col4 = st.columns(4)
                     res_col1.metric("AI Relevance Score", f"{analysis_result.get('relevance_score', 0)}%")
                     res_col2.metric("Skills Match", analysis_result.get('skills_match', 'N/A'))
-                    res_col3.metric("Years' Experience", analysis_result.get('years_experience', 'N/A'))
+                    res_col3.metric("Years' Experience", analysis_result.get('years_experience', 'N_A'))
                     res_col4.metric("Education Level", analysis_result.get('education_level', 'N/A'))
                 else:
                     st.error("AI did not return a valid JSON response. See raw response below.")
