@@ -71,36 +71,49 @@ def generate_report_text(analysis_result):
 # --- UI SETUP ---
 st.set_page_config(layout="wide", page_title="AI Resume Checker", page_icon="🚀")
 
-# Custom CSS for styling the skill cards and recommendation box
+# Custom CSS for a beautiful, dark-themed design
 st.markdown("""
 <style>
-    .skill-card {
+    /* General Card Style */
+    .card {
         background-color: #262730;
-        border-radius: 10px;
-        padding: 15px;
+        border-radius: 12px;
+        padding: 20px;
         margin-bottom: 20px;
         border: 1px solid #444;
+        box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2);
+        transition: 0.3s;
     }
-    .skill-card h5 {
+    .card:hover {
+        box-shadow: 0 8px 16px 0 rgba(0,0,0,0.2);
+    }
+    .card h5 {
         margin-top: 0;
         margin-bottom: 10px;
         display: flex;
         align-items: center;
+        font-size: 1.1em;
     }
-    .skill-card.matched {
-        background-color: rgba(4, 170, 109, 0.15);
-        border-color: #04AA6D;
+    
+    /* Specific Card Styles */
+    .matched {
+        background: linear-gradient(to right, #2E4034, #262730);
+        border-left: 5px solid #04AA6D;
     }
-    .skill-card.missing {
-        background-color: rgba(255, 193, 7, 0.15);
-        border-color: #FFC107;
+    .missing {
+        background: linear-gradient(to right, #4B3F27, #262730);
+        border-left: 5px solid #FFC107;
     }
-    .recommendation-box {
-        background-color: #1a3a5b;
-        border-radius: 10px;
+    .recommendation {
+        background: linear-gradient(to right, #1a3a5b, #262730);
+        border-left: 5px solid #007bff;
+        color: #F0F0F0; /* <<< YEH TEXT COLOR KO THEEK KARTA HAI */
+    }
+
+    /* Download Button Container */
+    .download-container {
+        text-align: center;
         padding: 20px;
-        border: 1px solid #007bff;
-        margin-top: 20px;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -139,53 +152,54 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
                 st.divider()
                 st.header("📊 Analysis Results")
 
-                recommendation_score = analysis_result.get('recommendation_score', 0)
-                if recommendation_score >= 75: rec_color, rec_text = "green", "Highly Recommended"
-                elif recommendation_score >= 50: rec_color, rec_text = "orange", "Worth Considering"
-                else: rec_color, rec_text = "red", "Not a Strong Fit"
+                score = analysis_result.get('recommendation_score', 0)
+                if score >= 75: color, text = "green", "Highly Recommended"
+                elif score >= 50: color, text = "orange", "Worth Considering"
+                else: color, text = "red", "Not a Strong Fit"
 
-                st.subheader(f"Final Verdict: :{rec_color}[{rec_text}]")
-                st.progress(recommendation_score / 100)
+                st.subheader(f"Final Verdict: :{color}[{text}]")
+                st.progress(score / 100)
 
                 st.markdown("### Skills Analysis")
                 
                 # Matched Skills Card
-                matched_skills_html = f"""
-                <div class="skill-card matched">
+                st.markdown(f"""
+                <div class="card matched">
                     <h5>✅ Matched Skills</h5>
-                    <p>{', '.join(analysis_result.get('matched_skills', []))}</p>
+                    <p>{', '.join(analysis_result.get('matched_skills', ['N/A']))}</p>
                 </div>
-                """
-                st.markdown(matched_skills_html, unsafe_allow_html=True)
+                """, unsafe_allow_html=True)
 
                 # Missing Skills Card
-                missing_skills_html = f"""
-                <div class="skill-card missing">
+                st.markdown(f"""
+                <div class="card missing">
                     <h5>❌ Missing Skills</h5>
-                    <p>{', '.join(analysis_result.get('missing_skills', []))}</p>
+                    <p>{', '.join(analysis_result.get('missing_skills', ['N/A']))}</p>
                 </div>
-                """
-                st.markdown(missing_skills_html, unsafe_allow_html=True)
+                """, unsafe_allow_html=True)
 
                 # Recommendation Box
                 st.markdown("### 💡 Recommendation")
-                recommendation_html = f"""
-                <div class="recommendation-box">
+                st.markdown(f"""
+                <div class="card recommendation">
                     <p>{analysis_result.get('recommendation_summary', "No summary provided.")}</p>
                 </div>
-                """
-                st.markdown(recommendation_html, unsafe_allow_html=True)
+                """, unsafe_allow_html=True)
 
                 # --- DOWNLOAD BUTTON ---
                 st.divider()
                 report_data = generate_report_text(analysis_result)
-                st.download_button(
-                    label="📥 Download Full Report",
-                    data=report_data,
-                    file_name="AI_Resume_Analysis_Report.txt",
-                    mime="text/plain",
-                    use_container_width=True
-                )
+                
+                with st.container():
+                    st.markdown('<div class="download-container">', unsafe_allow_html=True)
+                    st.download_button(
+                        label="📥 Download Full Report",
+                        data=report_data,
+                        file_name="AI_Resume_Analysis_Report.txt",
+                        mime="text/plain",
+                        use_container_width=True
+                    )
+                    st.markdown('</div>', unsafe_allow_html=True)
                 
             except Exception as e:
                 st.error(f"An unexpected error occurred: {e}")
