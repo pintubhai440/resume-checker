@@ -2,6 +2,6 @@ streamlit
 requests
 PyMuPDF
 langchain
-langchain-google-genai
+langchain-google-genai>=0.1.0
 pydantic
 google-generativeai
