@@ -71,49 +71,37 @@ def generate_report_text(analysis_result):
 # --- UI SETUP ---
 st.set_page_config(layout="wide", page_title="AI Resume Checker", page_icon="🚀")
 
-# Custom CSS for a beautiful, dark-themed design
+# Custom CSS for a clean, simple, and readable design
 st.markdown("""
 <style>
-    /* General Card Style */
+    /* Basic card structure that works with Streamlit's theme */
     .card {
-        background-color: #262730;
-        border-radius: 12px;
+        border-radius: 8px;
         padding: 20px;
         margin-bottom: 20px;
-        border: 1px solid #444;
-        box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2);
-        transition: 0.3s;
-    }
-    .card:hover {
-        box-shadow: 0 8px 16px 0 rgba(0,0,0,0.2);
+        border: 1px solid #444; /* Uses a neutral border color */
     }
     .card h5 {
-        margin-top: 0;
-        margin-bottom: 10px;
+        margin: 0;
+        padding: 0;
+        font-size: 1.1em;
         display: flex;
         align-items: center;
-        font-size: 1.1em;
+    }
+    .card p {
+        padding-top: 10px;
+        margin-bottom: 0;
     }
     
-    /* Specific Card Styles */
+    /* Colored left border for visual distinction, NO background color */
     .matched {
-        background: linear-gradient(to right, #2E4034, #262730);
         border-left: 5px solid #04AA6D;
     }
     .missing {
-        background: linear-gradient(to right, #4B3F27, #262730);
         border-left: 5px solid #FFC107;
     }
     .recommendation {
-        background: linear-gradient(to right, #1a3a5b, #262730);
         border-left: 5px solid #007bff;
-        color: #F0F0F0; /* <<< YEH TEXT COLOR KO THEEK KARTA HAI */
-    }
-
-    /* Download Button Container */
-    .download-container {
-        text-align: center;
-        padding: 20px;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -189,17 +177,13 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
                 # --- DOWNLOAD BUTTON ---
                 st.divider()
                 report_data = generate_report_text(analysis_result)
-                
-                with st.container():
-                    st.markdown('<div class="download-container">', unsafe_allow_html=True)
-                    st.download_button(
-                        label="📥 Download Full Report",
-                        data=report_data,
-                        file_name="AI_Resume_Analysis_Report.txt",
-                        mime="text/plain",
-                        use_container_width=True
-                    )
-                    st.markdown('</div>', unsafe_allow_html=True)
+                st.download_button(
+                    label="📥 Download Full Report",
+                    data=report_data,
+                    file_name="AI_Resume_Analysis_Report.txt",
+                    mime="text/plain",
+                    use_container_width=True
+                )
                 
             except Exception as e:
                 st.error(f"An unexpected error occurred: {e}")
