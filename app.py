@@ -46,7 +46,7 @@ def get_repetition_status(text):
 # --- UI SETUP ---
 st.set_page_config(layout="wide", page_title="AI Resume Checker")
 st.title("🚀 AI Resume Checker")
-st.write("Get consistent, accurate, and data-driven resume analysis with Gemini 1.5 Pro. This tool provides a relevance score, skill gap analysis, and more.")
+st.write("Get consistent, accurate, and data-driven resume analysis with Gemini. This tool provides a relevance score, skill gap analysis, and more.")
 
 # --- API KEY & MODEL SETUP ---
 try:
@@ -72,11 +72,10 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
     if not resume_text or not job_description:
         st.warning("Please provide both the Job Description and the Resume text.")
     else:
-        with st.spinner('Gemini 1.5 Pro is performing a deep analysis... This might take a moment.'):
-            # --- CHANGE: Upgraded model and set temperature to 0 for consistent results ---
+        with st.spinner('Gemini is performing a deep analysis... This might take a moment.'):
             llm = ChatGoogleGenerativeAI(
-                model="gemini-1.5-pro-latest",
-                temperature=0, # Crucial for deterministic, consistent output
+                model="gemini-2.5-pro", # <-- CHANGE 1: Using gemini-pro as requested
+                temperature=0,
                 safety_settings={
                     HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
                     HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
@@ -85,7 +84,6 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
                 },
             )
             
-            # --- CHANGE: More advanced and robust prompt template ---
             prompt_template_str = """
             You are a highly advanced AI hiring assistant and a data-driven analyst. Your task is to provide a strict, objective, and consistent analysis of a resume against a job description.
 
@@ -113,11 +111,11 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
             prompt = PromptTemplate(input_variables=["resume", "jd"], template=prompt_template_str)
             chain = RunnableSequence(prompt, llm)
             
+            response_text = "" # <-- CHANGE 2: Initializing the variable to prevent NameError
             try:
                 response = chain.invoke({"resume": resume_text, "jd": job_description})
                 response_text = response.content.strip()
                 
-                # Clean the response to ensure it's valid JSON
                 json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
                 if json_match:
                     json_text = json_match.group(0)
@@ -125,14 +123,12 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
                 else:
                     raise ValueError("No valid JSON object found in the AI's response.")
                 
-                # Perform additional checks
                 word_count_status = get_word_count_status(resume_text)
                 repetition_status = get_repetition_status(resume_text)
 
                 st.divider()
                 st.header("📊 Analysis Results")
 
-                # --- RECOMMENDATION SCORE ---
                 recommendation_score = analysis_result.get('recommendation_score', 0)
                 if recommendation_score >= 75:
                     rec_color = "green"
@@ -144,7 +140,6 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
                     rec_color = "red"
                     rec_text = "Not a Strong Fit"
 
-                # --- CHANGE: Added percentage to the final verdict subheader ---
                 st.subheader(f"Final Verdict: :{rec_color}[{rec_text} ({recommendation_score}%)]")
                 st.progress(recommendation_score)
                 
@@ -166,13 +161,11 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
                 st.subheader("💡 Recommendation")
                 st.info(analysis_result.get('recommendation_summary', 'No summary available.'))
                 
-                # --- CHANGE: Redesigned "Resume Quality Checks" with smaller text and beautiful cards ---
                 st.subheader("Resume Quality Checks")
                 
                 action_verbs = "✅ Yes" if analysis_result.get('uses_action_verbs') else "⚠️ No"
                 quant_results = "✅ Yes" if analysis_result.get('has_quantifiable_results') else "⚠️ No"
 
-                # Custom CSS for the cards
                 st.markdown("""
                 <style>
                 .metric-card {
@@ -208,7 +201,6 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
 
                 st.divider()
 
-                # --- DOWNLOAD REPORT (No Changes Here) ---
                 report_text = f"""
 AI RESUME ANALYSIS REPORT
 =========================
@@ -240,9 +232,6 @@ MISSING SKILLS:
                     use_container_width=True
                 )
 
-            except json.JSONDecodeError:
-                st.error("Error: Could not decode the JSON response from the AI. The model may have returned an unexpected format.")
-                st.text_area("Raw AI Response for debugging:", response_text, height=150)
             except Exception as e:
                 st.error(f"An unexpected error occurred: {e}")
                 st.text_area("Raw AI Response for debugging:", response_text, height=150)
