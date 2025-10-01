@@ -64,7 +64,7 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
         with st.spinner('Gemini is performing a deep analysis... This might take a moment.'):
             # Google Gemini AI model ko set karna
             llm = ChatGoogleGenerativeAI(
-                model="gemini-pro",  # <<<=== YAHAN BADLAV KIYA GAYA HAI
+                model="gemini-1.0-pro",  # <<<=== YAHAN BADLAV KIYA GAYA HAI
                 temperature=0.3,
                 safety_settings={
                     HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
@@ -147,3 +147,4 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
             except Exception as e:
                 st.error(f"An unexpected error occurred: {e}")
                 st.code(f"Raw AI response (if available):\n{response_text}", language="text")
+
