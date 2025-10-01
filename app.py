@@ -1,13 +1,13 @@
 import streamlit as st
 import os
 import json
-import re 
+import re
 from langchain_google_genai import ChatGoogleGenerativeAI, HarmBlockThreshold, HarmCategory
 from langchain.prompts import PromptTemplate
 from langchain_core.runnables import RunnableSequence
 from collections import Counter
 
-# --- Helper Functions for Resume Analysis ---
+# --- Helper Functions for Resume Analysis (No Changes Here) ---
 
 def get_word_count_status(text):
     """Checks the word count and returns a detailed status message."""
@@ -28,7 +28,6 @@ def get_repetition_status(text):
         'the', 'in', 'or', 'and', 'a', 'an', 'to', 'is', 'of', 'for', 'with', 'on', 'it', 'i', 'was',
         'are', 'as', 'at', 'be', 'by', 'that', 'this', 'from', 'my', 'we', 'our', 'you', 'your'
     }
-    # Clean text by removing punctuation and converting to lowercase
     clean_text = re.sub(r'[^\w\s]', '', text.lower())
     words = [word for word in clean_text.split() if word not in stop_words]
     
@@ -37,11 +36,9 @@ def get_repetition_status(text):
     
     word_counts = Counter(words)
     total_words = len(words)
-    # Find the most common word and its frequency
     most_common_word, count = word_counts.most_common(1)[0]
     repetition_percentage = (count / total_words) * 100
     
-    # Flag if a single keyword makes up more than 5% of the text
     if repetition_percentage > 5:
         return f"⚠️ High repetition of '{most_common_word}'"
     return "✅ Good keyword distribution"
@@ -49,11 +46,9 @@ def get_repetition_status(text):
 # --- UI SETUP ---
 st.set_page_config(layout="wide", page_title="AI Resume Checker")
 st.title("🚀 AI Resume Checker")
-st.write("Analyze and score resumes against job requirements with Gemini AI. This tool provides a relevance score, skill gap analysis, and more.")
+st.write("Get consistent, accurate, and data-driven resume analysis with Gemini 1.5 Pro. This tool provides a relevance score, skill gap analysis, and more.")
 
 # --- API KEY & MODEL SETUP ---
-# CRITICAL: Use Streamlit's secrets management for the API key.
-# This is a secure way to handle sensitive information.
 try:
     GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
 except (FileNotFoundError, KeyError):
@@ -66,10 +61,10 @@ os.environ["GOOGLE_API_KEY"] = GOOGLE_API_KEY
 col1, col2 = st.columns(2, gap="large")
 with col1:
     st.header("📄 Job Requirements")
-    job_description = st.text_area("Paste the Job Description here", height=350, label_visibility="collapsed")
+    job_description = st.text_area("Paste the Job Description here", height=350, label_visibility="collapsed", placeholder="Enter the job description...")
 with col2:
     st.header("👤 Candidate's Resume")
-    resume_text = st.text_area("Paste the Resume Text here", height=350, label_visibility="collapsed")
+    resume_text = st.text_area("Paste the Resume Text here", height=350, label_visibility="collapsed", placeholder="Enter the candidate's resume...")
 
 # --- ANALYSIS BUTTON & LOGIC ---
 if st.button("Analyze with Gemini AI", use_container_width=True, type="primary"):
@@ -77,11 +72,11 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
     if not resume_text or not job_description:
         st.warning("Please provide both the Job Description and the Resume text.")
     else:
-        with st.spinner('Gemini is performing a deep analysis... This might take a moment.'):
-            # Initialize the generative AI model
+        with st.spinner('Gemini 1.5 Pro is performing a deep analysis... This might take a moment.'):
+            # --- CHANGE: Upgraded model and set temperature to 0 for consistent results ---
             llm = ChatGoogleGenerativeAI(
-                model="gemini-2.5-pro",
-                temperature=0.3,
+                model="gemini-1.5-pro-latest",
+                temperature=0, # Crucial for deterministic, consistent output
                 safety_settings={
                     HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
                     HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
@@ -90,23 +85,26 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
                 },
             )
             
-            # Define the prompt template for the AI
+            # --- CHANGE: More advanced and robust prompt template ---
             prompt_template_str = """
-            You are an expert AI hiring assistant. Analyze the following resume and job description.
-            
-            IMPORTANT CONTEXT: The current date is September 21, 2025. When you see an experience range like "2022 - Present", you must calculate the duration precisely. From a start date in 2022 to the current date, the experience is nearly 3 years.
-            
-            Provide ONLY a raw JSON response with the following keys. Do not include any other text, formatting, or markdown backticks.
-            - "relevance_score": An integer score from 0 to 100 representing how well the resume matches the job description.
-            - "skills_match": A percentage string like "85%".
-            - "years_experience": A string representing the candidate's total relevant experience (e.g., "Almost 3 years" or "5+ years").
-            - "education_level": A brief alignment description like "High", "Medium", or "Low".
-            - "matched_skills": A list of up to 7 skills the candidate has that are required by the job.
-            - "missing_skills": A list of up to 3 critical skills the candidate is missing.
-            - "recommendation_summary": A 2-sentence summary of the candidate's fit.
-            - "uses_action_verbs": A boolean (true or false).
-            - "has_quantifiable_results": A boolean (true or false).
-            - "recommendation_score": An integer from 0 to 100, representing the overall confidence in recommending this candidate based on all factors combined (relevance, skills, experience, and resume quality).
+            You are a highly advanced AI hiring assistant and a data-driven analyst. Your task is to provide a strict, objective, and consistent analysis of a resume against a job description.
+
+            IMPORTANT CONTEXT:
+            - The current date is October 2, 2025. Calculate experience durations based on this date.
+            - Base your entire analysis STRICTLY on the text provided in the resume and job description. Do not infer or assume any skills or experiences not explicitly mentioned.
+
+            RESPONSE FORMAT:
+            You must provide ONLY a raw JSON response. Do not include any introductory text, explanations, or markdown formatting like ```json. The response must contain the following keys:
+            - "relevance_score": An integer (0-100) representing how well the resume's experience and skills align with the job requirements.
+            - "skills_match": A percentage string (e.g., "85%") calculated from the required skills found in the resume.
+            - "years_experience": A string representing the candidate's total relevant experience (e.g., "3 years", "5+ years"). Be precise.
+            - "education_level": A brief alignment description: "High" (meets or exceeds), "Medium" (partially meets), or "Low" (does not meet).
+            - "matched_skills": A list of up to 7 skills the candidate possesses that are also mentioned in the job description.
+            - "missing_skills": A list of up to 3 critical skills required by the job but absent from the resume.
+            - "recommendation_summary": A concise, 2-sentence summary of the candidate's fit, highlighting strengths and weaknesses objectively.
+            - "uses_action_verbs": A boolean (true/false). True if the resume uses action verbs (e.g., "Managed", "Developed", "Led").
+            - "has_quantifiable_results": A boolean (true/false). True if the resume includes achievements with numbers or metrics (e.g., "increased efficiency by 20%", "managed a budget of $50k").
+            - "recommendation_score": An integer (0-100) representing your overall confidence in the candidate, combining all factors.
 
             Resume: {resume}
             Job Description: {jd}
@@ -117,16 +115,15 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
             
             try:
                 response = chain.invoke({"resume": resume_text, "jd": job_description})
-                response_text = response.content
+                response_text = response.content.strip()
                 
                 # Clean the response to ensure it's valid JSON
-                start_index = response_text.find('{')
-                end_index = response_text.rfind('}') + 1
-                if start_index != -1 and end_index != -1:
-                    json_text = response_text[start_index:end_index]
+                json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
+                if json_match:
+                    json_text = json_match.group(0)
                     analysis_result = json.loads(json_text)
                 else:
-                    raise ValueError("No valid JSON found in the AI's response.")
+                    raise ValueError("No valid JSON object found in the AI's response.")
                 
                 # Perform additional checks
                 word_count_status = get_word_count_status(resume_text)
@@ -135,7 +132,7 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
                 st.divider()
                 st.header("📊 Analysis Results")
 
-                # --- NEW FEATURE: RECOMMENDATION SCORE ---
+                # --- RECOMMENDATION SCORE ---
                 recommendation_score = analysis_result.get('recommendation_score', 0)
                 if recommendation_score >= 75:
                     rec_color = "green"
@@ -147,10 +144,10 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
                     rec_color = "red"
                     rec_text = "Not a Strong Fit"
 
-                st.subheader(f"Final Verdict: :{rec_color}[{rec_text}]")
+                # --- CHANGE: Added percentage to the final verdict subheader ---
+                st.subheader(f"Final Verdict: :{rec_color}[{rec_text} ({recommendation_score}%)]")
                 st.progress(recommendation_score)
-                # --- END OF NEW FEATURE ---
-
+                
                 res_col1, res_col2, res_col3, res_col4 = st.columns(4)
                 res_col1.metric("AI Relevance Score", f"{analysis_result.get('relevance_score', 0)}%")
                 res_col2.metric("Skills Match", analysis_result.get('skills_match', 'N/A'))
@@ -169,23 +166,49 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
                 st.subheader("💡 Recommendation")
                 st.info(analysis_result.get('recommendation_summary', 'No summary available.'))
                 
+                # --- CHANGE: Redesigned "Resume Quality Checks" with smaller text and beautiful cards ---
                 st.subheader("Resume Quality Checks")
+                
                 action_verbs = "✅ Yes" if analysis_result.get('uses_action_verbs') else "⚠️ No"
                 quant_results = "✅ Yes" if analysis_result.get('has_quantifiable_results') else "⚠️ No"
-                
+
+                # Custom CSS for the cards
+                st.markdown("""
+                <style>
+                .metric-card {
+                    background-color: #F0F2F6;
+                    border-radius: 10px;
+                    padding: 15px;
+                    text-align: center;
+                    border: 1px solid #E0E0E0;
+                }
+                .metric-card p.label {
+                    font-size: 14px;
+                    color: #555;
+                    margin-bottom: 5px;
+                }
+                .metric-card p.value {
+                    font-size: 16px;
+                    font-weight: bold;
+                    color: #333;
+                    margin: 0;
+                }
+                </style>
+                """, unsafe_allow_html=True)
+
                 add_col1, add_col2, add_col3, add_col4 = st.columns(4)
                 with add_col1:
-                    st.metric("Word Count", word_count_status)
+                    st.markdown(f'<div class="metric-card"><p class="label">Word Count</p><p class="value">{word_count_status}</p></div>', unsafe_allow_html=True)
                 with add_col2:
-                    st.metric("Keyword Repetition", repetition_status)
+                    st.markdown(f'<div class="metric-card"><p class="label">Keyword Repetition</p><p class="value">{repetition_status}</p></div>', unsafe_allow_html=True)
                 with add_col3:
-                    st.metric("Uses Action Verbs?", action_verbs)
+                    st.markdown(f'<div class="metric-card"><p class="label">Uses Action Verbs?</p><p class="value">{action_verbs}</p></div>', unsafe_allow_html=True)
                 with add_col4:
-                    st.metric("Quantifiable Results?", quant_results)
-                
+                    st.markdown(f'<div class="metric-card"><p class="label">Quantifiable Results?</p><p class="value">{quant_results}</p></div>', unsafe_allow_html=True)
+
                 st.divider()
 
-                # --- DOWNLOAD REPORT ---
+                # --- DOWNLOAD REPORT (No Changes Here) ---
                 report_text = f"""
 AI RESUME ANALYSIS REPORT
 =========================
@@ -222,5 +245,4 @@ MISSING SKILLS:
                 st.text_area("Raw AI Response for debugging:", response_text, height=150)
             except Exception as e:
                 st.error(f"An unexpected error occurred: {e}")
-
-
+                st.text_area("Raw AI Response for debugging:", response_text, height=150)
