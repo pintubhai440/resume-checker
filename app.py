@@ -1,113 +1,77 @@
-# Zaroori libraries ko import karna
+# ======================================================================================
+# 🚀 AI RESUME CHECKER - FINAL & EXCELLENT VERSION
+# Author: Gemini (in collaboration with the user)
+# Version: 2.0
+# Description: An advanced AI-powered tool to analyze resumes against job descriptions,
+#              featuring dual input methods (Text & GitHub) and robust validation.
+# ======================================================================================
+
+# --- 1. IMPORT REQUIRED LIBRARIES ---
 import streamlit as st
-import json
 import google.generativeai as genai
+import requests
+import fitz  # PyMuPDF
+import json
+from pydantic import BaseModel, Field, ValidationError
+from typing import List, Optional
 
-# --- FUNCTIONS ---
+# --- 2. DEFINE THE DATA STRUCTURE FOR AI RESPONSE (MAKES CODE STRONG) ---
+# Pydantic ka use karke hum AI se aane wale response ke liye ek blueprint bana rahe hain.
+# Isse agar AI galat format me data bhejta hai, toh hamara app crash nahi hoga.
+class ResumeAnalysis(BaseModel):
+    relevance_score: int = Field(description="Relevance of resume to the job description (0-100).")
+    skills_match: str = Field(description="Percentage string of skills match.")
+    years_experience: str = Field(description="Candidate's relevant years of experience.")
+    education_level: str = Field(description="Alignment of education ('High', 'Medium', 'Low').")
+    matched_skills: List[str] = Field(description="List of skills that match the job description.")
+    missing_skills: List[str] = Field(description="List of critical skills missing from the resume.")
+    uses_action_verbs: bool = Field(description="Boolean indicating if resume uses strong action verbs.")
+    has_quantifiable_results: bool = Field(description="Boolean indicating if resume shows measurable results.")
+    recommendation_summary: str = Field(description="A concise, 2-3 sentence expert summary.")
+    recommendation_score: int = Field(description="Overall recommendation score (0-100).")
 
-def get_gemini_response(job_desc, resume_txt):
+# --- 3. CORE LOGIC FUNCTIONS ---
+
+def get_gemini_response(job_desc: str, resume_text: str) -> Optional[dict]:
     """
-    Calls the Gemini API with a low temperature for consistent results.
+    Ye function AI model (Gemini 2.5 Pro) ko call karta hai.
+    Ise ek bahut detailed 'brain' (prompt) diya gaya hai.
     """
     model = genai.GenerativeModel('gemini-2.5-pro')
+    
+    # Ye setting AI ko zyada creative hone se rokti hai, taaki result consistent rahe.
     generation_config = genai.GenerationConfig(
         response_mime_type="application/json",
-        temperature=0.2 
+        temperature=0.2
     )
-    full_prompt = f"""
-    You are an expert AI hiring assistant... [Previous detailed prompt remains the same]
-    ...
-    Resume Text: ```{resume_txt}```
-    Job Description: ```{job_desc}```
-    """
-    # (The full prompt is kept the same as the last correct version)
-    response = model.generate_content(full_prompt, generation_config=generation_config)
-    return json.loads(response.text)
 
-def generate_report_text(analysis_result):
-    """
-    Generates a downloadable .txt report from the analysis results.
-    """
-    # (This function remains the same as the last correct version)
-    report_lines = []
-    score = analysis_result.get('recommendation_score', 0)
-    if score >= 75: verdict = "Highly Recommended"
-    elif score >= 50: verdict = "Worth Considering"
-    else: verdict = "Not a Strong Fit"
-    report_lines.append(f"FINAL VERDICT: {verdict} ({score}/100)")
-    # ... rest of the function is the same
-    return "\n".join(report_lines)
+    # AI ke liye naya, 'Excellent' prompt (uska 'Brain')
+    prompt = f"""
+    You are an exceptionally skilled Senior Technical Recruitment Manager with 15 years of experience.
+    Your task is to conduct an in-depth, unbiased analysis of a candidate's resume against a given job description.
+    Your analysis must be critical, fair, and based ONLY on the text provided.
 
-# --- NEW: Function to clear results when input text changes ---
-def clear_old_results():
-    if 'analysis_result' in st.session_state:
-        del st.session_state['analysis_result']
+    Follow these steps for your analysis:
+    1.  **Skill Gap Analysis:** Identify which required skills are present and which are critically missing.
+    2.  **Experience Evaluation:** Assess the years and relevance of the candidate's experience.
+    3.  **Education Check:** Compare the candidate's education with the job requirements.
+    4.  **Resume Quality Check:** Specifically look for the use of strong action verbs (e.g., "Managed", "Developed", "Led") and quantifiable, result-oriented achievements (e.g., "Increased sales by 20%").
+    5.  **Final Synthesis:** Based on all the above points, provide a final recommendation score and a professional summary.
 
-# --- UI SETUP ---
-st.set_page_config(layout="wide", page_title="AI Resume Checker", page_icon="🚀")
+    You MUST return your entire analysis in a single, raw JSON object. Do not add any introductory text, markdown formatting, or explanations. The JSON must strictly follow this structure:
+    {{
+        "relevance_score": <integer>,
+        "skills_match": "<percentage_string>",
+        "years_experience": "<string>",
+        "education_level": "<'High'|'Medium'|'Low'>",
+        "matched_skills": [<string_list>],
+        "missing_skills": [<string_list>],
+        "uses_action_verbs": <boolean>,
+        "has_quantifiable_results": <boolean>,
+        "recommendation_summary": "<expert_summary_string>",
+        "recommendation_score": <integer>
+    }}
 
-# (The CSS part remains the same as the last correct version)
-st.markdown("""<style>...</style>""", unsafe_allow_html=True)
-
-st.title("🚀 AI Resume Checker")
-st.write("Analyze a resume against a job description...")
-
-# --- API KEY SETUP ---
-try:
-    GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
-    genai.configure(api_key=GOOGLE_API_KEY)
-except (FileNotFoundError, KeyError):
-    st.error("🤫 Google API Key not found...")
-    st.stop()
-
-# --- LAYOUT with on_change callback to clear old results ---
-col1, col2 = st.columns(2, gap="large")
-with col1:
-    st.header("📄 Job Requirements")
-    job_description = st.text_area("...", height=350, label_visibility="collapsed", key="job_desc", on_change=clear_old_results)
-with col2:
-    st.header("👤 Resume Content")
-    resume_text = st.text_area("...", height=350, label_visibility="collapsed", key="resume_text", on_change=clear_old_results)
-
-# --- ANALYSIS BUTTON & LOGIC ---
-if st.button("Analyze with Gemini AI", use_container_width=True, type="primary"):
-    if not resume_text or not job_description:
-        st.warning("Please provide both the Job Description and the Resume text.")
-    else:
-        with st.spinner('Gemini 2.5 Pro is performing a deep analysis...'):
-            try:
-                # Save the new result in the session state
-                st.session_state.analysis_result = get_gemini_response(job_description, resume_text)
-            except Exception as e:
-                st.error(f"An unexpected error occurred: {e}")
-                if 'analysis_result' in st.session_state:
-                    del st.session_state['analysis_result']
-
-# --- DISPLAY RESULTS ---
-# Check if a result exists in the session state before displaying it
-if 'analysis_result' in st.session_state and st.session_state.analysis_result is not None:
-    analysis_result = st.session_state.analysis_result
-    
-    st.divider()
-    st.header("📊 Analysis Results")
-
-    score = analysis_result.get('recommendation_score', 0)
-    if score >= 75: color, text = "green", "Highly Recommended"
-    elif score >= 50: color, text = "orange", "Worth Considering"
-    else: color, text = "red", "Not a Strong Fit"
-
-    st.subheader(f"Final Verdict: :{color}[{text} ({score}%)]")
-    st.progress(score / 100)
-    
-    # (The rest of the display logic for metrics, skills, recommendation, and download button remains the same)
-    st.markdown("### Key Metrics")
-    res_col1, res_col2, res_col3, res_col4 = st.columns(4)
-    res_col1.metric("AI Relevance Score", f"{analysis_result.get('relevance_score', 0)}%")
-    res_col2.metric("Skills Match", analysis_result.get('skills_match', 'N/A'))
-    res_col3.metric("Years' Experience", analysis_result.get('years_experience', 'N/A'))
-    res_col4.metric("Education Level", analysis_result.get('education_level', 'N/A'))
-    # ... and so on for the rest of the display cards ...
-
-    st.divider()
-    report_data = generate_report_text(analysis_result)
-    st.download_button(label="📥 Download Full Report", data=report_data, file_name="AI_Resume_Analysis_Report.txt", mime="text/plain", use_container_width=True)
+    Here is the data for your analysis:
+    JOB DESCRIPTION: ```{job_desc}```
+    RESUME TEXT: ```{resume_text}
