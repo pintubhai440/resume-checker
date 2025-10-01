@@ -147,6 +147,15 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
 
                 st.subheader(f"Final Verdict: :{color}[{text}]")
                 st.progress(score / 100)
+                
+                # --- KEY METRICS (FEATURE ADDED BACK) ---
+                st.markdown("### Key Metrics")
+                res_col1, res_col2, res_col3, res_col4 = st.columns(4)
+                res_col1.metric("AI Relevance Score", f"{analysis_result.get('relevance_score', 0)}%")
+                res_col2.metric("Skills Match", analysis_result.get('skills_match', 'N/A'))
+                res_col3.metric("Years' Experience", analysis_result.get('years_experience', 'N/A'))
+                res_col4.metric("Education Level", analysis_result.get('education_level', 'N/A'))
+                # --- END OF ADDED FEATURE ---
 
                 st.markdown("### Skills Analysis")
                 
