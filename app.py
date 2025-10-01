@@ -7,39 +7,14 @@ from langchain_google_genai import ChatGoogleGenerativeAI, HarmBlockThreshold, H
 from langchain.prompts import PromptTemplate
 from collections import Counter
 
-# --- Helper Functions (Resume ki quality check karne ke liye) ---
-
-def get_word_count_status(text):
-    """Shabdon ki ginti check karta hai."""
-    word_count = len(text.split())
-    if word_count < 50:
-        return f"⚠️ Too Short ({word_count} words)"
-    elif 50 <= word_count <= 1000:
-        return f"✅ Optimal Length ({word_count} words)"
-    else:
-        return f"⚠️ Exceeded Max Limit ({word_count} words)"
-
-def get_repetition_status(text):
-    """Resume mein keywords ke repetition ko check karta hai."""
-    stop_words = {'the', 'in', 'or', 'and', 'a', 'an', 'to', 'is', 'of', 'for', 'with', 'on', 'it', 'i', 'was', 'are', 'as', 'at', 'be', 'by', 'that', 'this', 'from', 'my', 'we', 'our', 'you', 'your'}
-    clean_text = re.sub(r'[^\w\s]', '', text.lower())
-    words = [word for word in clean_text.split() if word not in stop_words]
-    if not words:
-        return "✅ Good"
-    word_counts = Counter(words)
-    total_words = len(words)
-    most_common_word, count = word_counts.most_common(1)[0]
-    repetition_percentage = (count / total_words) * 100
-    if repetition_percentage > 5:
-        return f"⚠️ High: '{most_common_word}'"
-    return "✅ Good"
-
 # --- UI SETUP ---
+# Page ka configuration set karna, wide layout aur title ke saath
 st.set_page_config(layout="wide", page_title="AI Resume Checker", page_icon="🚀")
 st.title("🚀 AI Resume Checker")
 st.write("Analyze a resume against a job description to get instant, powerful insights.")
 
 # --- API KEY & MODEL SETUP ---
+# Suraksha ke liye API key ko Streamlit ke secrets se load karna
 try:
     GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
     os.environ["GOOGLE_API_KEY"] = GOOGLE_API_KEY
@@ -48,6 +23,7 @@ except (FileNotFoundError, KeyError):
     st.stop()
 
 # --- LAYOUT ---
+# Screen ko do columns me baantna
 col1, col2 = st.columns(2, gap="large")
 with col1:
     st.header("📄 Job Requirements")
@@ -57,15 +33,18 @@ with col2:
     resume_text = st.text_area("Paste Resume Text", height=350, label_visibility="collapsed", placeholder="Paste the candidate's resume here...", key="resume_text")
 
 # --- ANALYSIS BUTTON & LOGIC ---
+# Jab user button par click karega to yeh logic chalega
 if st.button("Analyze with Gemini AI", use_container_width=True, type="primary"):
     if not resume_text or not job_description:
         st.warning("Please provide both the Job Description and the Resume text.")
     else:
         with st.spinner('Gemini is performing a deep analysis... This might take a moment.'):
             # Google Gemini AI model ko set karna
+            # Hum sabse naye model ka istemal kar rahe hain
             llm = ChatGoogleGenerativeAI(
-                model="gemini-1.0-pro",  # <<<=== YAHAN BADLAV KIYA GAYA HAI
+                model="gemini-1.5-pro-latest",
                 temperature=0.3,
+                convert_system_message_to_human=True, # Ek extra setting behtar compatibility ke liye
                 safety_settings={
                     HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
                     HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
@@ -73,7 +52,7 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
                     HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
                 },
             )
-            
+
             # AI ko batana ki use kya karna hai (ek detailed prompt)
             prompt_template_str = """
             You are an expert AI hiring assistant. Your task is to analyze a resume against a job description.
@@ -93,31 +72,29 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
             Job Description: {jd}
             """
             prompt = PromptTemplate(input_variables=["resume", "jd"], template=prompt_template_str)
-            
+
             chain = prompt | llm
-            
-            response_text = "" 
+
+            response_text = ""
             try:
                 response = chain.invoke({"resume": resume_text, "jd": job_description})
                 response_text = response.content
-                
+
                 # JSON ko response se nikalne ka behtar tarika
-                # Yeh '```json' aur '```' ke beech ka content nikalega
                 match = re.search(r"```json\s*(\{.*?\})\s*```", response_text, re.DOTALL)
                 if match:
                     json_text = match.group(1)
                 else:
-                    # Agar markdown format na mile, to purana tarika istemal karein
                     start_index = response_text.find('{')
                     end_index = response_text.rfind('}') + 1
                     if start_index != -1 and end_index != -1:
                         json_text = response_text[start_index:end_index]
                     else:
                         json_text = None
-                
+
                 if json_text:
                     analysis_result = json.loads(json_text)
-                    
+
                     st.divider()
                     st.header("📊 Analysis Results")
 
@@ -147,4 +124,3 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
             except Exception as e:
                 st.error(f"An unexpected error occurred: {e}")
                 st.code(f"Raw AI response (if available):\n{response_text}", language="text")
-
