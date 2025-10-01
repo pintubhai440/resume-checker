@@ -2,7 +2,7 @@
 import streamlit as st
 import os
 import json
-import re 
+import re
 from langchain_google_genai import ChatGoogleGenerativeAI, HarmBlockThreshold, HarmCategory
 from langchain.prompts import PromptTemplate
 from collections import Counter
@@ -62,8 +62,9 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
         st.warning("Please provide both the Job Description and the Resume text.")
     else:
         with st.spinner('Gemini is performing a deep analysis... This might take a moment.'):
+            # Google Gemini AI model ko set karna
             llm = ChatGoogleGenerativeAI(
-                model="gemini-1.5-pro-latest",
+                model="gemini-pro",  # <<<=== YAHAN BADLAV KIYA GAYA HAI
                 temperature=0.3,
                 safety_settings={
                     HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
@@ -73,6 +74,7 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
                 },
             )
             
+            # AI ko batana ki use kya karna hai (ek detailed prompt)
             prompt_template_str = """
             You are an expert AI hiring assistant. Your task is to analyze a resume against a job description.
             Provide ONLY a raw JSON response with the following keys. Do not add any extra text or formatting before or after the JSON object.
@@ -99,11 +101,21 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
                 response = chain.invoke({"resume": resume_text, "jd": job_description})
                 response_text = response.content
                 
-                start_index = response_text.find('{')
-                end_index = response_text.rfind('}') + 1
-
-                if start_index != -1 and end_index != -1:
-                    json_text = response_text[start_index:end_index]
+                # JSON ko response se nikalne ka behtar tarika
+                # Yeh '```json' aur '```' ke beech ka content nikalega
+                match = re.search(r"```json\s*(\{.*?\})\s*```", response_text, re.DOTALL)
+                if match:
+                    json_text = match.group(1)
+                else:
+                    # Agar markdown format na mile, to purana tarika istemal karein
+                    start_index = response_text.find('{')
+                    end_index = response_text.rfind('}') + 1
+                    if start_index != -1 and end_index != -1:
+                        json_text = response_text[start_index:end_index]
+                    else:
+                        json_text = None
+                
+                if json_text:
                     analysis_result = json.loads(json_text)
                     
                     st.divider()
@@ -128,7 +140,10 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
                 else:
                     st.error("AI did not return a valid JSON response. See raw response below.")
                     st.code(response_text, language="text")
+
+            except json.JSONDecodeError:
+                st.error("Failed to decode JSON from the AI response.")
+                st.code(f"Raw AI response that caused error:\n{response_text}", language="text")
             except Exception as e:
                 st.error(f"An unexpected error occurred: {e}")
                 st.code(f"Raw AI response (if available):\n{response_text}", language="text")
-
