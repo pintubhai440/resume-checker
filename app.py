@@ -7,11 +7,17 @@ import google.generativeai as genai
 
 def get_gemini_response(job_desc, resume_txt):
     """
-    Calls the Gemini API with the resume and job description to get a JSON analysis.
-    Uses gemini-2.5-pro and forces a JSON output for reliability.
+    Calls the Gemini API with a low temperature for consistent results.
     """
     model = genai.GenerativeModel('gemini-2.5-pro')
-    generation_config = genai.GenerationConfig(response_mime_type="application/json")
+    
+    # --- FIX FOR FLUCTUATION ---
+    # Temperature ko kam set kiya gaya hai taaki results consistent rahen.
+    generation_config = genai.GenerationConfig(
+        response_mime_type="application/json",
+        temperature=0.2 
+    )
+
     full_prompt = f"""
     You are an expert AI hiring assistant with deep expertise in tech and HR.
     Analyze the following resume against the provided job description.
@@ -79,7 +85,7 @@ st.markdown("""
         border-radius: 8px;
         padding: 20px;
         margin-bottom: 20px;
-        border: 1px solid #444; /* Uses a neutral border color */
+        border: 1px solid #444;
     }
     .card h5 {
         margin: 0;
@@ -93,7 +99,7 @@ st.markdown("""
         margin-bottom: 0;
     }
     
-    /* Colored left border for visual distinction, NO background color */
+    /* Colored left border for visual distinction */
     .matched {
         border-left: 5px solid #04AA6D;
     }
@@ -144,22 +150,20 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
                 if score >= 75: color, text = "green", "Highly Recommended"
                 elif score >= 50: color, text = "orange", "Worth Considering"
                 else: color, text = "red", "Not a Strong Fit"
-
-                st.subheader(f"Final Verdict: :{color}[{text}]")
+                
+                # --- NEW FEATURE: Display score with verdict ---
+                st.subheader(f"Final Verdict: :{color}[{text} ({score}%)]")
                 st.progress(score / 100)
                 
-                # --- KEY METRICS (FEATURE ADDED BACK) ---
                 st.markdown("### Key Metrics")
                 res_col1, res_col2, res_col3, res_col4 = st.columns(4)
                 res_col1.metric("AI Relevance Score", f"{analysis_result.get('relevance_score', 0)}%")
                 res_col2.metric("Skills Match", analysis_result.get('skills_match', 'N/A'))
                 res_col3.metric("Years' Experience", analysis_result.get('years_experience', 'N/A'))
                 res_col4.metric("Education Level", analysis_result.get('education_level', 'N/A'))
-                # --- END OF ADDED FEATURE ---
 
                 st.markdown("### Skills Analysis")
                 
-                # Matched Skills Card
                 st.markdown(f"""
                 <div class="card matched">
                     <h5>✅ Matched Skills</h5>
@@ -167,7 +171,6 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
                 </div>
                 """, unsafe_allow_html=True)
 
-                # Missing Skills Card
                 st.markdown(f"""
                 <div class="card missing">
                     <h5>❌ Missing Skills</h5>
@@ -175,7 +178,6 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
                 </div>
                 """, unsafe_allow_html=True)
 
-                # Recommendation Box
                 st.markdown("### 💡 Recommendation")
                 st.markdown(f"""
                 <div class="card recommendation">
@@ -183,7 +185,6 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
                 </div>
                 """, unsafe_allow_html=True)
 
-                # --- DOWNLOAD BUTTON ---
                 st.divider()
                 report_data = generate_report_text(analysis_result)
                 st.download_button(
