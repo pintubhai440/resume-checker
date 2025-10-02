@@ -56,29 +56,30 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
         with st.spinner('Gemini is performing a deep analysis... This might take a moment.'):
             llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash-exp", temperature=0.2, safety_settings={ HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE, HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE, HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE, HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE, })
             
-            # FINAL, BALANCED PROMPT
+            # FINAL, MOST ROBUST PROMPT WITH A STEP-BY-STEP PROCESS
             prompt_template_str = """
-            You are a highly advanced AI hiring assistant. Your task is to provide a strict but fair analysis of a resume against a job description.
+            You are a highly advanced AI hiring assistant. Your task is to provide a strict and fair analysis of a resume against a job description by following a specific process.
 
             ---
-            EVALUATION RULES:
-            1.  **Eligibility Check (Top Priority):** First, verify hard eligibility criteria like graduation year. If a candidate is ineligible (e.g., graduates in 2025 when 2023 or earlier is required), you MUST follow these specific instructions:
-                - "education_level" MUST be "Low".
-                - "recommendation_score" MUST be exactly 40.
-                - "relevance_score" and "skills_match" should be lowered but still reflect their raw skills (around 50-55% if skills are otherwise strong).
-                - The "recommendation_summary" MUST start by stating the ineligibility.
+            **EVALUATION PROCESS TO FOLLOW:**
+            You must follow these steps in order:
 
-            2.  **Eligible Candidate Skill Gap:** If a candidate is eligible, but their skill set is for a different role (e.g., 'Business Analyst' for a 'Data Scientist' job) and they are missing core skills (like Machine Learning, Spark), then:
-                - The "skills_match" should be low (around 30%).
-                - The "relevance_score" should be moderate (around 60%).
-                - The "recommendation_score" should be around 55.
+            1.  **Step 1: Comprehensive Skill Extraction:** Read the ENTIRE resume (Skills, Projects, Education, Experience sections) and create a comprehensive internal list of all technical skills and technologies the candidate possesses. For example, if a project mentions 'LSTM', you MUST add 'Deep Learning' to the candidate's skill list. If the education is in 'Artificial Intelligence & Machine Learning', you MUST add 'Machine Learning' to the skill list.
 
-            3.  **Holistic Skill Assessment:** Base your analysis STRICTLY on the text provided. Do not infer skills. However, you MUST consider skills mentioned within 'Projects' or 'Experience' sections as valid skills possessed by the candidate (e.g., if a project uses 'LSTM', the candidate has 'Deep Learning' skills).
-            
-            4.  **Prioritize Role:** Prioritize analysis for the 'Data Science Intern' role if multiple roles are present.
+            2.  **Step 2: Eligibility Check:** After extracting skills, check for hard eligibility criteria like graduation year.
+
+            3.  **Step 3: Skill Comparison & Scoring:** Compare the comprehensive skill list from Step 1 against the skills required in the job description. Then, apply the Scoring Rules below to determine the final scores.
+
+            4.  **Step 4: JSON Generation:** Generate the final JSON output according to the format and scoring rules.
             ---
 
-            RESPONSE FORMAT:
+            **SCORING RULES:**
+            -   **Ineligibility Rule (Top Priority):** If the candidate from Step 2 is ineligible (e.g., graduates in 2025 when 2023 or earlier is required), then: "education_level" MUST be "Low", "recommendation_score" MUST be exactly 40, "relevance_score" and "skills_match" should be lowered but still reflect their raw skills (around 50-55%), and the summary MUST start by stating the ineligibility.
+            -   **Eligible Skill Gap Rule:** If the candidate is eligible, but their skill set is for a different role (e.g., 'Business Analyst' for a 'Data Scientist' job), then: the "skills_match" should be low (around 30%), the "relevance_score" should be moderate (around 60%), and the "recommendation_score" should be around 55.
+            -   **Role Priority Rule:** Prioritize analysis for the 'Data Science Intern' role.
+            ---
+
+            **RESPONSE FORMAT:**
             Provide ONLY a raw JSON response with the following keys:
             - "relevance_score": An integer (0-100).
             - "skills_match": A percentage string (e.g., "50%").
@@ -162,7 +163,7 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
                 add_col1, add_col2, add_col3, add_col4 = st.columns(4)
                 with add_col1: st.markdown(f'<div class="metric-card"><p class="label">Word Count</p><p class="value">{word_count_status}</p></div>', unsafe_allow_html=True)
                 with add_col2: st.markdown(f'<div class="metric-card"><p class="label">Keyword Repetition</p><p class="value">{repetition_status}</p></div>', unsafe_allow_html=True)
-                with add_col3: st.markdown(f'<div class="metric-card"><p class="label">Uses Action Verbs?</p><p class="value">{action_verbs}</p></div>', unsafe_allow_html=True)
+                with add_col3: st.markdown(f'<div class="metric-card"><p class="label">Uses Action Verbs?</p><p class="value">{action_verbs}</p></div>', unsafe__html=True)
                 with add_col4: st.markdown(f'<div class="metric-card"><p class="label">Quantifiable Results?</p><p class="value">{quant_results}</p></div>', unsafe_allow_html=True)
 
                 st.divider()
