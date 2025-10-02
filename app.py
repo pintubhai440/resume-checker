@@ -80,7 +80,7 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
         with st.spinner('Gemini is performing a deep analysis... This might take a moment.'):
             # The Google Gemini AI model is configured
             llm = ChatGoogleGenerativeAI(
-                model="gemini-pro", # Using the stable gemini-pro model
+                model="gemini-2.5-flash-lite", # Using the stable gemini-pro model
                 temperature=0, # Set to 0 for deterministic, consistent output
                 safety_settings={
                     HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
@@ -254,3 +254,4 @@ MISSING SKILLS:
             except Exception as e:
                 st.error(f"An unexpected error occurred: {e}")
                 st.text_area("Raw AI Response for debugging:", response_text, height=150)
+
