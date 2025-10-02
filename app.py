@@ -56,7 +56,7 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
         with st.spinner('Gemini is performing a deep analysis... This might take a moment.'):
             llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash-exp", temperature=0.2, safety_settings={ HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE, HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE, HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE, HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE, })
             
-            # BALANCED AND REFINED PROMPT
+            # FINAL, BALANCED PROMPT
             prompt_template_str = """
             You are a highly advanced AI hiring assistant. Your task is to provide a strict but fair analysis of a resume against a job description.
 
@@ -73,9 +73,9 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
                 - The "relevance_score" should be moderate (around 60%).
                 - The "recommendation_score" should be around 55.
 
-            3.  **General Rules:**
-                - Prioritize analysis for the 'Data Science Intern' role if multiple roles are present.
-                - Base your analysis STRICTLY on the text provided. Do not infer skills.
+            3.  **Holistic Skill Assessment:** Base your analysis STRICTLY on the text provided. Do not infer skills. However, you MUST consider skills mentioned within 'Projects' or 'Experience' sections as valid skills possessed by the candidate (e.g., if a project uses 'LSTM', the candidate has 'Deep Learning' skills).
+            
+            4.  **Prioritize Role:** Prioritize analysis for the 'Data Science Intern' role if multiple roles are present.
             ---
 
             RESPONSE FORMAT:
@@ -111,7 +111,6 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
                     raise ValueError("No valid JSON object found in the AI's response.")
                 
                 # The rest of your Streamlit display code remains the same...
-                
                 word_count_status = get_word_count_status(resume_text)
                 repetition_status = get_repetition_status(resume_text)
 
@@ -167,15 +166,7 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
                 with add_col4: st.markdown(f'<div class="metric-card"><p class="label">Quantifiable Results?</p><p class="value">{quant_results}</p></div>', unsafe_allow_html=True)
 
                 st.divider()
-
-                report_text = f"""
-AI RESUME ANALYSIS REPORT
-=========================
-FINAL VERDICT: {rec_text} ({recommendation_score}%)
-# ... (rest of the report generation is the same)
-"""
-                # ... (download button code is the same)
-
+                # ... (rest of the code is the same)
             except Exception as e:
                 st.error(f"An unexpected error occurred: {e}")
                 st.text_area("Raw AI Response for debugging:", response_text, height=150)
