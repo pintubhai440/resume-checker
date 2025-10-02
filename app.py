@@ -95,7 +95,7 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
     else:
         with st.spinner('🔍 Gemini is performing comprehensive analysis... This might take 20-30 seconds.'):
             llm = ChatGoogleGenerativeAI(
-                model="gemini-2.0-flash-thinking-exp",
+                model="gemini-1.5-flash",
                 temperature=0.2, # Slightly increased for better descriptive text
                 safety_settings={
                     HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
@@ -162,7 +162,7 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
                 matched_skills = sorted([s.title() for s in matched_skills_set])
                 missing_skills = sorted([s.title() for s in missing_skills_set])
                 
-                skills_match_percentage = round((len(matched_skills_set) / len(required_skills_set)) * 100)
+                skills_match_percentage = round((len(matched_skills_set) / len(required_skills_set)) * 100) if required_skills_set else 0
             
             # --- STEP 3: Get Qualitative Analysis from LLM with Pre-calculated Data ---
             try:
@@ -259,19 +259,55 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
 
                 # Skills Analysis
                 st.subheader("🔧 Skills Analysis")
+                
+                # Custom CSS for skill tags to make them look like nice badges
+                st.markdown("""
+                <style>
+                .skill-tag-container {
+                    line-height: 2.2;
+                }
+                .skill-tag {
+                    display: inline-block;
+                    padding: 4px 12px;
+                    margin: 4px 3px;
+                    font-size: 14px;
+                    background-color: #FFF0F0;
+                    color: #D32F2F;
+                    border: 1px solid #FFCDD2;
+                    border-radius: 16px;
+                    font-weight: 500;
+                }
+                .skill-tag-matched {
+                    display: inline-block;
+                    padding: 4px 12px;
+                    margin: 4px 3px;
+                    font-size: 14px;
+                    background-color: #E8F5E9;
+                    color: #2E7D32;
+                    border: 1px solid #C8E6C9;
+                    border-radius: 16px;
+                    font-weight: 500;
+                }
+                </style>
+                """, unsafe_allow_html=True)
+                
                 skill_col1, skill_col2 = st.columns(2)
                 
                 with skill_col1:
                     st.success("✅ Matched Skills")
                     if analysis_result['matched_skills']:
-                        st.markdown('\n'.join(f"- {skill}" for skill in analysis_result['matched_skills']))
+                        # Generate HTML for each skill tag and join them together
+                        skills_html = "".join([f'<span class="skill-tag-matched">{skill}</span>' for skill in analysis_result['matched_skills']])
+                        st.markdown(f'<div class="skill-tag-container">{skills_html}</div>', unsafe_allow_html=True)
                     else:
                         st.write("No matching skills found.")
                 
                 with skill_col2:
                     st.warning("❗️ Critical Missing Skills")
                     if analysis_result['missing_skills']:
-                        st.markdown('\n'.join(f"- {skill}" for skill in analysis_result['missing_skills']))
+                        # Generate HTML for each skill tag and join them together
+                        skills_html = "".join([f'<span class="skill-tag">{skill}</span>' for skill in analysis_result['missing_skills']])
+                        st.markdown(f'<div class="skill-tag-container">{skills_html}</div>', unsafe_allow_html=True)
                     else:
                         st.write("No major skill gaps identified.")
 
@@ -361,4 +397,3 @@ st.markdown("""
     <p>Provides realistic scoring based on actual content matching between resume and job requirements</p>
 </div>
 """, unsafe_allow_html=True)
-
