@@ -56,6 +56,23 @@ except (FileNotFoundError, KeyError):
     st.error("🤫 Google API Key not found. Please add it to your Streamlit secrets.")
     st.stop()
     
+# --- PERFORMANCE FIX: Cache the AI model to prevent reloading on each run ---
+@st.cache_resource
+def load_llm():
+    """Loads and caches the Gemini LLM model."""
+    llm = ChatGoogleGenerativeAI(
+        # CRITICAL FIX: Using a valid and stable model name
+        model="gemini-2.0-flash-exp",
+        temperature=0,
+        # Safety settings are important to prevent the model from blocking valid requests
+        safety_settings={
+            HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
+        },
+    )
+    return llm
 
 # --- LAYOUT ---
 col1, col2 = st.columns(2, gap="large")
@@ -73,16 +90,8 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
         st.warning("Please provide both the Job Description and the Resume text.")
     else:
         with st.spinner('Gemini is performing a deep analysis... This might take a moment.'):
-            llm = ChatGoogleGenerativeAI(
-                model="gemini-2.0-flash-exp", # CORRECTED: Using a valid and stable model
-                temperature=0,
-                safety_settings={
-                    HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
-                    HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
-                    HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
-                    HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
-                },
-            )
+            # Load the cached model
+            llm = load_llm()
             
             # IMPROVED PROMPT with stricter rules
             prompt_template_str = """
@@ -120,6 +129,7 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
                 response = chain.invoke({"resume": resume_text, "jd": job_description})
                 response_text = response.content.strip()
                 
+                # Robustly find and parse the JSON object from the response
                 json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
                 if json_match:
                     json_text = json_match.group(0)
@@ -167,23 +177,16 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
                 action_verbs = "✅ Yes" if analysis_result.get('uses_action_verbs') else "⚠️ No"
                 quant_results = "✅ Yes" if analysis_result.get('has_quantifiable_results') else "⚠️ No"
 
-                st.markdown("""
-                <style>
-                .metric-card { background-color: #F0F2F6; border-radius: 10px; padding: 15px; text-align: center; border: 1px solid #E0E0E0; }
-                .metric-card p.label { font-size: 14px; color: #555; margin-bottom: 5px; }
-                .metric-card p.value { font-size: 16px; font-weight: bold; color: #333; margin: 0; }
-                </style>
-                """, unsafe_allow_html=True)
-
+                # Using st.columns for the metric cards for better alignment
                 add_col1, add_col2, add_col3, add_col4 = st.columns(4)
                 with add_col1:
-                    st.markdown(f'<div class="metric-card"><p class="label">Word Count</p><p class="value">{word_count_status}</p></div>', unsafe_allow_html=True)
+                    st.metric(label="Word Count", value=word_count_status)
                 with add_col2:
-                    st.markdown(f'<div class="metric-card"><p class="label">Keyword Repetition</p><p class="value">{repetition_status}</p></div>', unsafe_allow_html=True)
+                    st.metric(label="Keyword Repetition", value=repetition_status)
                 with add_col3:
-                    st.markdown(f'<div class="metric-card"><p class="label">Uses Action Verbs?</p><p class="value">{action_verbs}</p></div>', unsafe_allow_html=True)
+                    st.metric(label="Uses Action Verbs?", value=action_verbs)
                 with add_col4:
-                    st.markdown(f'<div class="metric-card"><p class="label">Quantifiable Results?</p><p class="value">{quant_results}</p></div>', unsafe_allow_html=True)
+                    st.metric(label="Quantifiable Results?", value=quant_results)
 
                 st.divider()
 
