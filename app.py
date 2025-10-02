@@ -6,22 +6,26 @@ import re
 from langchain_google_genai import ChatGoogleGenerativeAI, HarmBlockThreshold, HarmCategory
 from langchain.prompts import PromptTemplate
 from collections import Counter
-import time
+import time # Added for potential retries or delays if needed
 
 # --- Helper Functions for Resume Quality Analysis ---
 
 def get_word_count_status(text):
-    """Analyze resume word count and provide status"""
+    """
+    Analyze resume word count with stricter, more professional criteria.
+    A professional resume is typically between 400 and 800 words.
+    """
     word_count = len(text.split())
-    if word_count < 150:
+    if word_count < 400:
+        # CHANGED: Threshold increased from 150 to 400 for a more realistic check.
         return f"⚠️ Too Short ({word_count} words)"
-    elif 150 <= word_count <= 800:
+    elif 400 <= word_count <= 800:
         return f"✅ Optimal Length ({word_count} words)"
     else:
         return f"⚠️ Too Long ({word_count} words)"
 
 def get_repetition_status(text):
-    """Analyze keyword repetition in resume with an improved stop-word list."""
+    """Analyze keyword repetition. The goal is to check for overuse of words."""
     stop_words = {
         'a', 'about', 'above', 'after', 'again', 'against', 'all', 'am', 'an', 'and', 'any', 'are', 'as', 'at',
         'be', 'because', 'been', 'before', 'being', 'below', 'between', 'both', 'but', 'by', 'can', 'did', 'do',
@@ -33,17 +37,18 @@ def get_repetition_status(text):
         'then', 'there', 'these', 'they', 'this', 'those', 'through', 'to', 'too', 'under', 'until', 'up', 'very',
         'was', 'we', 'were', 'what', 'when', 'where', 'which', 'while', 'who', 'whom', 'why', 'will', 'with', 'you',
         'your', 'yours', 'yourself', 'yourselves', 'experience', 'work', 'project', 'company', 'team', 'role', 'worked',
-        'responsibilities', 'development', 'used', 'using'
+        'responsibilities', 'development', 'used', 'using', 'responsible'
     }
     clean_text = re.sub(r'[^\w\s]', '', text.lower())
     words = [word for word in clean_text.split() if word not in stop_words and not word.isdigit()]
 
     if len(words) < 20: # Not enough content to analyze
-        return "✅ Good keyword distribution"
+        # CHANGED: Feedback is more specific to what is being checked.
+        return "✅ Low Repetition"
         
     word_counts = Counter(words)
     if not word_counts:
-        return "✅ Good keyword distribution"
+        return "✅ Low Repetition"
 
     total_words = len(words)
     most_common_word, count = word_counts.most_common(1)[0]
@@ -51,7 +56,8 @@ def get_repetition_status(text):
     
     if repetition_percentage > 4.5:
         return f"⚠️ High repetition of '{most_common_word.title()}'"
-    return "✅ Good keyword distribution"
+    # CHANGED: Feedback is more specific.
+    return "✅ Low Repetition"
 
 def clean_json_response(response_text):
     """Extracts and cleans a JSON object from a string."""
@@ -93,9 +99,10 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
     if not resume_text.strip() or not job_description.strip():
         st.warning("⚠️ Please provide both the Job Description and the Resume text.")
     else:
-        with st.spinner('🔍 Gemini is performing comprehensive analysis... This might take 20-30 seconds.'):
+        with st.spinner('🔍 Gemini is performing a strict analysis... This might take 20-30 seconds.'):
+            # Using a powerful model. You can change this if needed. e.g., "gemini-1.5-pro-latest"
             llm = ChatGoogleGenerativeAI(
-                model="gemini-2.5-flash-lite",
+                model="gemini-2.5-flash-lite", 
                 temperature=0.1,
                 safety_settings={
                     HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
@@ -105,30 +112,38 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
                 }
             )
             
-            # --- A Single, More Robust Prompt ---
+            # --- A Single, More Robust, and Stricter Prompt ---
             try:
+                # CHANGED: The prompt is heavily modified to be stricter and more accurate.
                 analysis_prompt_template = """
-                You are an expert HR Analyst. Your task is to analyze a candidate's RESUME against a JOB DESCRIPTION.
-                Provide a detailed evaluation in a structured JSON format.
+                You are a very strict and critical senior HR Analyst. Your task is to mercilessly analyze a candidate's RESUME against a JOB DESCRIPTION. Be highly critical and do not give the benefit of the doubt. If something isn't explicitly mentioned with evidence, assume it's a weakness.
 
                 **ANALYSIS INSTRUCTIONS:**
+
                 1.  **Skills Analysis:**
-                    - First, identify all the skills explicitly required in the JOB DESCRIPTION.
-                    - Then, check the RESUME to see which of those required skills are present. Use semantic understanding (e.g., "Analytical Thinking" should match "Analytical Skills").
-                    - Create two lists: `matched_skills` and `missing_skills`.
+                    * Identify all skills explicitly required in the JOB DESCRIPTION.
+                    * Rigorously check the RESUME to see which skills are present. Do not infer skills that are not clearly stated.
+                    * Create two lists: `matched_skills` and `missing_skills`.
+
                 2.  **Skills Match Percentage (`skills_match`):**
-                    - Calculate this as: (Number of Matched Skills / Total Number of Required Skills) * 100. Round to the nearest whole number. If no skills are required, this should be 100.
+                    * Calculate this strictly: (Number of Matched Skills / Total Number of Required Skills) * 100. Round down to the nearest whole number. If no skills are required, this is 100.
+
                 3.  **Years of Experience (`years_experience`):**
-                    - Calculate the total years of professional experience from the resume.
-                    - If specific work dates are not present, estimate the experience based on the graduation date. For a recent graduate (e.g., passed out in the last 1-2 years), it should be "Fresher" or "Less than 1 year". A 2020 pass-out would have around 4-5 years of experience by late 2025.
-                4.  **Education Level (`education_level`):**
-                    - Compare the candidate's education with the job requirements.
-                    - Classify as 'High' (perfect match), 'Medium' (related field or acceptable alternative), or 'Low' (does not meet requirements).
-                5.  **Relevance and Recommendation Scores:**
-                    - `relevance_score` (0-100): Overall match considering skills, experience, and education.
-                    - `recommendation_score` (0-100): Your final confidence in recommending the candidate for an interview.
+                    * Calculate total professional experience from the resume. Be precise.
+                    * "Fresher" or "Less than 1 year" for recent graduates. A 2020 pass-out has 4-5 years of experience by late 2025. Do not be generous.
+
+                4.  **Resume Quality Analysis:**
+                    * `uses_action_verbs` (true/false): Check if the resume uses strong action verbs to describe accomplishments.
+                        * **Strong verbs examples:** 'Led', 'Optimized', 'Engineered', 'Launched', 'Increased', 'Managed', 'Developed'.
+                        * **Weak phrases (should result in 'false'):** 'Responsible for', 'Worked on', 'I was involved in', 'I used', 'My duties included'. Penalize heavily for passive language.
+                    * `has_quantifiable_results` (true/false): Check for specific, measurable achievements (e.g., "Increased sales by 20%", "Reduced server costs by 15%"). If none are found, this MUST be false.
+
+                5.  **Scoring (Be Harsh):**
+                    * `relevance_score` (0-100): Overall match. A low skills match or lack of experience should result in a very low score.
+                    * `recommendation_score` (0-100): Your final confidence. If the candidate is missing critical skills, this score should be extremely low (e.g., under 30). Do not recommend candidates who are not a strong fit.
+
                 6.  **Recommendation Summary (`recommendation_summary`):**
-                    - Write a concise, actionable summary for the hiring manager, explaining your recommendation.
+                    * Write a direct, blunt summary for the hiring manager. If the candidate is a bad fit, state it clearly (e.g., "This candidate is not a suitable fit due to a significant skill gap and lack of relevant experience. Recommend immediate rejection.").
 
                 **RESUME:**
                 {resume}
@@ -138,16 +153,16 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
 
                 **RETURN ONLY a raw JSON object in the following exact format:**
                 {{
-                    "relevance_score": 85,
-                    "skills_match": 75,
-                    "years_experience": "5 years",
-                    "education_level": "High",
-                    "matched_skills": ["Python", "SQL", "Data Analysis", "Problem Solving"],
-                    "missing_skills": ["Machine Learning", "Cloud Computing", "Tableau"],
-                    "recommendation_summary": "The candidate is a strong fit with solid foundational skills in Python and SQL. While they lack advanced ML expertise, they are a quick learner and recommended for an interview.",
-                    "uses_action_verbs": true,
+                    "relevance_score": 25,
+                    "skills_match": 15,
+                    "years_experience": "Fresher",
+                    "education_level": "Medium",
+                    "matched_skills": ["Python", "SQL"],
+                    "missing_skills": ["Data Engineering", "Deep Learning", "Spark", "Kafka", "Tableau"],
+                    "recommendation_summary": "Candidate is not a suitable fit. They lack over 80% of the required technical skills and have no practical experience. Recommend immediate rejection.",
+                    "uses_action_verbs": false,
                     "has_quantifiable_results": false,
-                    "recommendation_score": 80
+                    "recommendation_score": 20
                 }}
                 """
                 analysis_prompt = PromptTemplate.from_template(analysis_prompt_template)
@@ -172,12 +187,17 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
                 st.header("📊 Detailed Analysis Results")
 
                 recommendation_score = analysis_result.get('recommendation_score', 0)
+                
+                # CHANGED: Added a stricter 'Strongly Not Recommended' category for very low scores.
                 if recommendation_score >= 80:
                     rec_color, rec_text = "green", "Highly Recommended"
                 elif recommendation_score >= 60:
                     rec_color, rec_text = "orange", "Worth Considering"
-                else:
+                elif recommendation_score >= 40:
                     rec_color, rec_text = "red", "Not Recommended"
+                else: # Scores below 40
+                    rec_color, rec_text = "red", "Strongly Not Recommended"
+
 
                 st.subheader(f"Final Verdict: :{rec_color}[{rec_text} ({recommendation_score}%)]")
                 st.progress(recommendation_score / 100)
@@ -195,6 +215,7 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
                 st.subheader("🔧 Skills Analysis")
                 skill_col1, skill_col2 = st.columns(2)
                 
+                # This CSS is for the horizontal skill badges you wanted.
                 st.markdown("""
                 <style>
                 .skill-badge { display: inline-block; padding: 6px 12px; margin: 4px; font-size: 0.9em; font-weight: 500; border-radius: 15px; text-align: center; }
@@ -302,7 +323,3 @@ st.markdown("""
     <p>Provides realistic scoring based on actual content matching between resume and job requirements</p>
 </div>
 """, unsafe_allow_html=True)
-
-
-
-
