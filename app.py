@@ -54,37 +54,37 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
         st.warning("Please provide both the Job Description and the Resume text.")
     else:
         with st.spinner('Gemini is performing a deep analysis... This might take a moment.'):
-            llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash-exp", temperature=0.2, safety_settings={ HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE, HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE, HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE, HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE, })
+            llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash-exp", temperature=0, safety_settings={ HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE, HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE, HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE, HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE, })
             
-            # FINAL, MOST ROBUST PROMPT WITH A STEP-BY-STEP PROCESS
             prompt_template_str = """
-            You are a highly advanced AI hiring assistant. Your task is to provide a strict and fair analysis of a resume against a job description by following a specific process.
+            You are a highly advanced AI hiring assistant. Your task is to provide a strict, objective, and data-driven analysis of a resume against a job description.
 
             ---
-            **EVALUATION PROCESS TO FOLLOW:**
-            You must follow these steps in order:
+            **EVALUATION RULES:**
+            Your most important task is to check for hard eligibility criteria (like graduation year or degree).
 
-            1.  **Step 1: Eligibility Check (Top Priority):** First, check for hard eligibility criteria like graduation year and degree type (e.g., B.Tech/BE) from the 'Education' section. Determine if the candidate is eligible or ineligible.
+            **RULE 1 (INELIGIBILITY OVERRIDE):** If a candidate fails ANY hard eligibility criterion (e.g., their degree is BBA when BE/B.Tech is required, or their graduation year is 2025 when 2023 or earlier is required), you MUST generate the JSON with the following exact values:
+            - "education_level": "Low"
+            - "relevance_score": 40
+            - "skills_match": "30%"
+            - "recommendation_score": 40
+            The "recommendation_summary" MUST start by stating the exact reason for ineligibility. You must still provide the full "matched_skills" and "missing_skills" analysis.
 
-            2.  **Step 2: Comprehensive Skill Extraction:** Read the ENTIRE resume (Skills, Projects, Education, Experience sections) and create a comprehensive internal list of all **technical skills and technologies**. For example, if a project mentions 'LSTM', you MUST add 'Deep Learning' to this list. If 'Tableau' is mentioned, add 'Tableau'. If 'Machine Learning' is in the skills list, add it. **Do NOT include educational degrees like 'B.Tech' or 'MCA' in this technical skills list.**
+            **RULE 2 (ELIGIBLE CANDIDATES):** If the candidate is eligible, then perform a detailed skill analysis. If they have a major skill gap (e.g., 'Business Analyst' for a 'Data Scientist' job), then the "skills_match" should be low (around 30-40%), and the "recommendation_score" should be around 55.
 
-            3.  **Step 3: Skill Comparison & JSON Generation:** Compare the comprehensive skill list from Step 2 against the skills required in the job description to create the "matched_skills" and "missing_skills" lists. Then, based on the eligibility result from Step 1, apply the correct Scoring Rule below and generate the complete JSON output.
-            ---
-
-            **SCORING RULES:**
-            -   **Ineligibility Rule (Top Priority):** If the candidate from Step 1 is ineligible (e.g., their degree is MCA when BE/B.Tech is required), then you MUST follow these specific instructions: "education_level" MUST be "Low", "recommendation_score" MUST be exactly 40, "relevance_score" and "skills_match" should be lowered but still reflect their raw skills (around 50-55% if skills are otherwise strong), and the summary MUST start by stating the ineligibility.
-            -   **Eligible Skill Gap Rule:** If the candidate is eligible, but their skill set is for a different role (e.g., 'Business Analyst' for a 'Data Scientist' job), then: the "skills_match" should be low (around 30%), the "relevance_score" should be moderate (around 60%), and the "recommendation_score" should be around 55.
-            -   **Role Priority Rule:** Prioritize analysis for the 'Data Science Intern' role.
+            **GENERAL RULES:**
+            - Prioritize analysis for the 'Data Science Intern' role.
+            - Base your analysis STRICTLY on the text provided. Do not infer skills.
             ---
 
             **RESPONSE FORMAT:**
-            Provide ONLY a raw JSON response with the following keys. Ensure all keys, especially "matched_skills" and "missing_skills", are always populated.
+            Provide ONLY a raw JSON response with the specified keys. Ensure all keys are present.
             - "relevance_score": An integer (0-100).
-            - "skills_match": A percentage string (e.g., "50%").
+            - "skills_match": A percentage string (e.g., "30%").
             - "years_experience": A string (e.g., "0 years").
             - "education_level": A description: "High", "Medium", or "Low".
-            - "matched_skills": A list of up to 7 skills.
-            - "missing_skills": A list of up to 3 critical skills.
+            - "matched_skills": A list of skills.
+            - "missing_skills": A list of skills.
             - "recommendation_summary": A concise, 2-sentence summary.
             - "uses_action_verbs": A boolean (true/false).
             - "has_quantifiable_results": A boolean (true/false).
@@ -109,7 +109,6 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
                 else:
                     raise ValueError("No valid JSON object found in the AI's response.")
                 
-                # The rest of your Streamlit display code remains the same...
                 word_count_status = get_word_count_status(resume_text)
                 repetition_status = get_repetition_status(resume_text)
 
@@ -137,10 +136,10 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
                 skill_col1, skill_col2 = st.columns(2)
                 with skill_col1:
                     st.success("✅ Matched Skills")
-                    st.write(", ".join(analysis_result.get('matched_skills', ["Not found"])))
+                    st.write(", ".join(analysis_result.get('matched_skills', [])))
                 with skill_col2:
                     st.warning("❗️ Missing Skills")
-                    st.write(", ".join(analysis_result.get('missing_skills', ["None found"])))
+                    st.write(", ".join(analysis_result.get('missing_skills', [])))
 
                 st.subheader("💡 Recommendation")
                 st.info(analysis_result.get('recommendation_summary', 'No summary available.'))
@@ -165,7 +164,33 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
                 with add_col4: st.markdown(f'<div class="metric-card"><p class="label">Quantifiable Results?</p><p class="value">{quant_results}</p></div>', unsafe_allow_html=True)
 
                 st.divider()
-                # ... (rest of the code is the same)
+
+                report_text = f"""
+AI RESUME ANALYSIS REPORT
+=========================
+FINAL VERDICT: {rec_text} ({recommendation_score}%)
+AI RELEVANCE SCORE: {analysis_result.get('relevance_score', 0)}%
+SKILLS MATCH: {analysis_result.get('skills_match', 'N/A')}
+YEARS' EXPERIENCE: {analysis_result.get('years_experience', 'N/A')}
+EDUCATION: {analysis_result.get('education_level', 'N/A')}
+
+RECOMMENDATION:
+{analysis_result.get('recommendation_summary', '')}
+
+MATCHED SKILLS:
+- {', '.join(analysis_result.get('matched_skills', []))}
+
+MISSING SKILLS:
+- {', '.join(analysis_result.get('missing_skills', []))}
+"""
+                st.download_button(
+                    label="⬇️ Download Full Report",
+                    data=report_text,
+                    file_name="resume_analysis_report.txt",
+                    mime="text/plain",
+                    use_container_width=True
+                )
+
             except Exception as e:
                 st.error(f"An unexpected error occurred: {e}")
                 st.text_area("Raw AI Response for debugging:", response_text, height=150)
