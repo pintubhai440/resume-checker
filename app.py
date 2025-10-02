@@ -56,17 +56,17 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
         with st.spinner('Gemini is performing a deep analysis... This might take a moment.'):
             llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash-exp", temperature=0, safety_settings={ HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE, HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE, HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE, HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE, })
             
-            # FINAL, STRICTEST PROMPT
+            # FINAL, ULTRA-STRICT PROMPT
             prompt_template_str = """
             You are a highly advanced AI hiring assistant. Your task is to provide a strict, objective, and data-driven analysis of a resume against a job description.
 
             ---
             STRICT EVALUATION RULES:
             1.  **Eligibility First:** Before analyzing skills, you MUST first verify hard eligibility criteria mentioned in the job description, such as graduation year or degree.
-            2.  **Penalize Ineligibility:** If a candidate fails ANY hard eligibility criterion (e.g., their graduation year is 2025 when "2023 and earlier" is required), then the "education_level" MUST be "Low", the "recommendation_score" MUST NOT exceed 40, and the "relevance_score" and "skills_match" MUST also be significantly reduced. The summary must start by stating the reason for ineligibility.
+            2.  **Penalize Ineligibility:** If a candidate fails ANY hard eligibility criterion (e.g., their graduation year is 2025 when "2023 and earlier" is required), then the "education_level" MUST be "Low", the "recommendation_score" MUST NOT exceed 40, the "relevance_score" and "skills_match" MUST also be significantly reduced. The summary must start by stating the reason for ineligibility.
             3.  **Strict Skill Matching:** Base your analysis STRICTLY on the text provided. Do not infer or assume skills. If the job requires "Spark", "Pandas" is not a substitute.
             4.  **Prioritize Role:** Prioritize analysis for the 'Data Science Intern' role if multiple roles are present.
-            5.  **Penalize Major Skill Gaps:** Even if a candidate is eligible, if their skill set is for a different role (e.g., they are a 'Business Analyst' but the job is for a 'Data Scientist') and they are missing all core skills for the prioritized role (like Machine Learning, Deep Learning, and Spark), then the "skills_match" MUST NOT exceed 40%, the "relevance_score" MUST NOT exceed 60%, and the "recommendation_score" MUST be below 60.
+            5.  **Penalize Major Skill Gaps:** Even if a candidate is eligible, if their skill set is for a different role (e.g., they are a 'Business Analyst' but the job is for a 'Data Scientist') and they are missing all core skills for the prioritized role (like Machine Learning, Deep Learning, and Spark), then you MUST treat this as a major deficiency. In this specific case, the "skills_match" MUST be around 30%, the "relevance_score" MUST be around 60%, and the "recommendation_score" MUST be around 55%.
             ---
 
             RESPONSE FORMAT:
