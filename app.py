@@ -62,18 +62,18 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
 
             ---
             STRICT EVALUATION RULES:
-            1.  **Eligibility First:** Before analyzing skills, you MUST first verify hard eligibility criteria mentioned in the job description, such as graduation year, degree, or required certifications.
-            2.  **Penalize Ineligibility:** If a candidate fails ANY hard eligibility criterion (e.g., their graduation year is 2025 when "2023 and earlier" is required), then the "education_level" MUST be "Low", the "recommendation_score" MUST NOT exceed 40, the "relevance_score" and "skills_match" MUST also be significantly reduced, and the "recommendation_summary" MUST start by stating the reason for ineligibility.
-            3.  **Strict Skill Matching:** Base your analysis STRICTLY on the text provided. Do not infer or assume skills. If the job requires "Spark", do not consider "Pandas" a substitute.
+            1.  **Eligibility First:** Before analyzing skills, you MUST first verify hard eligibility criteria mentioned in the job description, such as graduation year or degree.
+            2.  **Penalize Ineligibility:** If a candidate fails ANY hard eligibility criterion (e.g., their graduation year is 2025 when "2023 and earlier" is required), then the "education_level" MUST be "Low", the "recommendation_score" MUST NOT exceed 40, and the "relevance_score" and "skills_match" MUST also be significantly reduced. The summary must start by stating the reason for ineligibility.
+            3.  **Strict Skill Matching:** Base your analysis STRICTLY on the text provided. Do not infer or assume skills. If the job requires "Spark", "Pandas" is not a substitute.
             4.  **Prioritize Role:** Prioritize analysis for the 'Data Science Intern' role if multiple roles are present.
-            5.  **Penalize Major Skill Gaps:** Even if a candidate is eligible, if they are missing multiple core skills for the prioritized role (e.g., missing all of Machine Learning, Deep Learning, and Spark for a Data Scientist role), the "relevance_score" and "skills_match" MUST be kept below 65%, and the "recommendation_score" MUST be in the 'Not a Strong Fit' or low 'Worth Considering' range (below 60).
+            5.  **Penalize Major Skill Gaps:** Even if a candidate is eligible, if their skill set is for a different role (e.g., they are a 'Business Analyst' but the job is for a 'Data Scientist') and they are missing all core skills for the prioritized role (like Machine Learning, Deep Learning, and Spark), then the "skills_match" MUST NOT exceed 40%, the "relevance_score" MUST NOT exceed 60%, and the "recommendation_score" MUST be below 60.
             ---
 
             RESPONSE FORMAT:
             Provide ONLY a raw JSON response with the following keys:
             - "relevance_score": An integer (0-100).
-            - "skills_match": A percentage string (e.g., "85%").
-            - "years_experience": A string (e.g., "0 years", "3 years").
+            - "skills_match": A percentage string (e.g., "30%").
+            - "years_experience": A string (e.g., "0 years").
             - "education_level": A description: "High", "Medium", or "Low".
             - "matched_skills": A list of up to 7 skills.
             - "missing_skills": A list of up to 3 critical skills.
