@@ -69,7 +69,7 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
             - "relevance_score": 40
             - "skills_match": "30%"
             - "recommendation_score": 40
-            The "recommendation_summary" MUST start by stating the exact reason for ineligibility.
+            The "recommendation_summary" MUST start by stating the exact reason for ineligibility. You must still provide the full "matched_skills" and "missing_skills" analysis, even for ineligible candidates.
 
             **RULE 2 (ELIGIBLE CANDIDATES):** If the candidate is eligible, then you will perform a detailed skill analysis. If they are eligible but their skill set is for a different role (e.g., 'Business Analyst' for a 'Data Scientist' job) and they are missing core skills (like Machine Learning, Spark), then the "skills_match" should be low (around 30-40%), and the "recommendation_score" should be around 55.
 
@@ -79,7 +79,7 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
             ---
 
             **RESPONSE FORMAT:**
-            Provide ONLY a raw JSON response with the following keys:
+            Provide ONLY a raw JSON response with the specified keys. Ensure all keys are present in the final JSON.
             - "relevance_score": An integer (0-100).
             - "skills_match": A percentage string (e.g., "30%").
             - "years_experience": A string (e.g., "0 years").
@@ -138,10 +138,12 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
                 skill_col1, skill_col2 = st.columns(2)
                 with skill_col1:
                     st.success("✅ Matched Skills")
-                    st.write(", ".join(analysis_result.get('matched_skills', ["Not found"])))
+                    # Using .get with a default empty list to prevent errors
+                    st.write(", ".join(analysis_result.get('matched_skills', [])))
                 with skill_col2:
                     st.warning("❗️ Missing Skills")
-                    st.write(", ".join(analysis_result.get('missing_skills', ["None found"])))
+                    # Using .get with a default empty list to prevent errors
+                    st.write(", ".join(analysis_result.get('missing_skills', [])))
 
                 st.subheader("💡 Recommendation")
                 st.info(analysis_result.get('recommendation_summary', 'No summary available.'))
