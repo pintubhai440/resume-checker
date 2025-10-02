@@ -8,39 +8,22 @@ from langchain.prompts import PromptTemplate
 from collections import Counter
 
 # --- Helper Functions for Resume Quality Analysis (No Changes Here) ---
-
 def get_word_count_status(text):
-    """Checks the word count and returns a detailed status message."""
     word_count = len(text.split())
-    if word_count < 50:
-        return f"⚠️ Too Short ({word_count} words)"
-    elif 50 <= word_count <= 1000:
-        return f"✅ Optimal Length ({word_count} words)"
-    else:
-        return f"⚠️ Exceeded Max Limit ({word_count} words)"
+    if word_count < 50: return f"⚠️ Too Short ({word_count} words)"
+    elif 50 <= word_count <= 1000: return f"✅ Optimal Length ({word_count} words)"
+    else: return f"⚠️ Exceeded Max Limit ({word_count} words)"
 
 def get_repetition_status(text):
-    """
-    Checks for keyword repetition, ignoring common stop words and punctuation,
-    to ensure good keyword distribution.
-    """
-    stop_words = {
-        'the', 'in', 'or', 'and', 'a', 'an', 'to', 'is', 'of', 'for', 'with', 'on', 'it', 'i', 'was',
-        'are', 'as', 'at', 'be', 'by', 'that', 'this', 'from', 'my', 'we', 'our', 'you', 'your'
-    }
+    stop_words = {'the', 'in', 'or', 'and', 'a', 'an', 'to', 'is', 'of', 'for', 'with', 'on', 'it', 'i', 'was', 'are', 'as', 'at', 'be', 'by', 'that', 'this', 'from', 'my', 'we', 'our', 'you', 'your'}
     clean_text = re.sub(r'[^\w\s]', '', text.lower())
     words = [word for word in clean_text.split() if word not in stop_words]
-    
-    if not words:
-        return "✅ Good keyword distribution"
-    
+    if not words: return "✅ Good keyword distribution"
     word_counts = Counter(words)
     total_words = len(words)
     most_common_word, count = word_counts.most_common(1)[0]
     repetition_percentage = (count / total_words) * 100
-    
-    if repetition_percentage > 5:
-        return f"⚠️ High repetition of '{most_common_word}'"
+    if repetition_percentage > 5: return f"⚠️ High repetition of '{most_common_word}'"
     return "✅ Good keyword distribution"
 
 # --- UI SETUP ---
@@ -55,7 +38,6 @@ try:
 except (FileNotFoundError, KeyError):
     st.error("🤫 Google API Key not found. Please add it to your Streamlit secrets.")
     st.stop()
-    
 
 # --- LAYOUT ---
 col1, col2 = st.columns(2, gap="large")
@@ -68,21 +50,11 @@ with col2:
 
 # --- ANALYSIS BUTTON & LOGIC ---
 if st.button("Analyze with Gemini AI", use_container_width=True, type="primary"):
-    
     if not resume_text or not job_description:
         st.warning("Please provide both the Job Description and the Resume text.")
     else:
         with st.spinner('Gemini is performing a deep analysis... This might take a moment.'):
-            llm = ChatGoogleGenerativeAI(
-                model="gemini-2.0-flash-exp",
-                temperature=0,
-                safety_settings={
-                    HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
-                    HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
-                    HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
-                    HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
-                },
-            )
+            llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash-exp", temperature=0, safety_settings={ HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE, HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE, HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE, HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE, })
             
             # FINAL, STRICTEST PROMPT
             prompt_template_str = """
@@ -91,23 +63,24 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
             ---
             STRICT EVALUATION RULES:
             1.  **Eligibility First:** Before analyzing skills, you MUST first verify hard eligibility criteria mentioned in the job description, such as graduation year, degree, or required certifications.
-            2.  **Penalize Ineligibility:** If a candidate fails ANY hard eligibility criterion (e.g., their graduation year is 2025 when "2023 and earlier" is required), then the "education_level" MUST be "Low", the "recommendation_score" MUST NOT exceed 40, the "relevance_score" and "skills_match" MUST also be significantly reduced to reflect this ineligibility, and the "recommendation_summary" MUST start by stating the reason for ineligibility.
-            3.  **Strict Skill Matching:** Base your analysis STRICTLY on the text provided. Do not infer or assume any skills or experiences not explicitly mentioned. If the job requires "Spark", do not consider "Pandas" as a direct substitute.
-            4.  **Prioritize analysis for the 'Data Science Intern' role if multiple roles are present in the job description.**
+            2.  **Penalize Ineligibility:** If a candidate fails ANY hard eligibility criterion (e.g., their graduation year is 2025 when "2023 and earlier" is required), then the "education_level" MUST be "Low", the "recommendation_score" MUST NOT exceed 40, the "relevance_score" and "skills_match" MUST also be significantly reduced, and the "recommendation_summary" MUST start by stating the reason for ineligibility.
+            3.  **Strict Skill Matching:** Base your analysis STRICTLY on the text provided. Do not infer or assume skills. If the job requires "Spark", do not consider "Pandas" a substitute.
+            4.  **Prioritize Role:** Prioritize analysis for the 'Data Science Intern' role if multiple roles are present.
+            5.  **Penalize Major Skill Gaps:** Even if a candidate is eligible, if they are missing multiple core skills for the prioritized role (e.g., missing all of Machine Learning, Deep Learning, and Spark for a Data Scientist role), the "relevance_score" and "skills_match" MUST be kept below 65%, and the "recommendation_score" MUST be in the 'Not a Strong Fit' or low 'Worth Considering' range (below 60).
             ---
 
             RESPONSE FORMAT:
-            You must provide ONLY a raw JSON response. Do not include any introductory text, explanations, or markdown formatting like ```json. The response must contain the following keys:
+            Provide ONLY a raw JSON response with the following keys:
             - "relevance_score": An integer (0-100).
             - "skills_match": A percentage string (e.g., "85%").
-            - "years_experience": A string representing the candidate's total relevant experience (e.g., "0 years", "3 years").
-            - "education_level": A description: "High" (meets or exceeds), "Medium" (partially meets), or "Low" (does not meet eligibility).
-            - "matched_skills": A list of up to 7 skills the candidate has that are required by the job.
-            - "missing_skills": A list of up to 3 critical skills required by the job but absent from the resume.
-            - "recommendation_summary": A concise, 2-sentence summary of the candidate's fit.
+            - "years_experience": A string (e.g., "0 years", "3 years").
+            - "education_level": A description: "High", "Medium", or "Low".
+            - "matched_skills": A list of up to 7 skills.
+            - "missing_skills": A list of up to 3 critical skills.
+            - "recommendation_summary": A concise, 2-sentence summary.
             - "uses_action_verbs": A boolean (true/false).
             - "has_quantifiable_results": A boolean (true/false).
-            - "recommendation_score": An integer (0-100) representing your overall confidence.
+            - "recommendation_score": An integer (0-100).
 
             Resume: {resume}
             Job Description: {jd}
@@ -177,14 +150,10 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
                 """, unsafe_allow_html=True)
 
                 add_col1, add_col2, add_col3, add_col4 = st.columns(4)
-                with add_col1:
-                    st.markdown(f'<div class="metric-card"><p class="label">Word Count</p><p class="value">{word_count_status}</p></div>', unsafe_allow_html=True)
-                with add_col2:
-                    st.markdown(f'<div class="metric-card"><p class="label">Keyword Repetition</p><p class="value">{repetition_status}</p></div>', unsafe_allow_html=True)
-                with add_col3:
-                    st.markdown(f'<div class="metric-card"><p class="label">Uses Action Verbs?</p><p class="value">{action_verbs}</p></div>', unsafe_allow_html=True)
-                with add_col4:
-                    st.markdown(f'<div class="metric-card"><p class="label">Quantifiable Results?</p><p class="value">{quant_results}</p></div>', unsafe_allow_html=True)
+                with add_col1: st.markdown(f'<div class="metric-card"><p class="label">Word Count</p><p class="value">{word_count_status}</p></div>', unsafe_allow_html=True)
+                with add_col2: st.markdown(f'<div class="metric-card"><p class="label">Keyword Repetition</p><p class="value">{repetition_status}</p></div>', unsafe_allow_html=True)
+                with add_col3: st.markdown(f'<div class="metric-card"><p class="label">Uses Action Verbs?</p><p class="value">{action_verbs}</p></div>', unsafe_allow_html=True)
+                with add_col4: st.markdown(f'<div class="metric-card"><p class="label">Quantifiable Results?</p><p class="value">{quant_results}</p></div>', unsafe_allow_html=True)
 
                 st.divider()
 
@@ -212,13 +181,7 @@ MATCHED SKILLS:
 MISSING SKILLS:
 - {', '.join(analysis_result.get('missing_skills', []))}
 """
-                st.download_button(
-                    label="⬇️ Download Full Report",
-                    data=report_text,
-                    file_name="resume_analysis_report.txt",
-                    mime="text/plain",
-                    use_container_width=True
-                )
+                st.download_button(label="⬇️ Download Full Report", data=report_text, file_name="resume_analysis_report.txt", mime="text/plain", use_container_width=True)
 
             except Exception as e:
                 st.error(f"An unexpected error occurred: {e}")
