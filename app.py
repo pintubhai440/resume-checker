@@ -7,7 +7,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI, HarmBlockThreshold, H
 from langchain.prompts import PromptTemplate
 from collections import Counter
 
-# --- Helper Functions (No Changes Here) ---
+# --- Helper Functions for Resume Quality Analysis (No Changes Here) ---
 def get_word_count_status(text):
     word_count = len(text.split())
     if word_count < 50: return f"⚠️ Too Short ({word_count} words)"
@@ -33,8 +33,8 @@ st.write("Get consistent, accurate, and data-driven resume analysis with Gemini.
 
 # --- API KEY & MODEL SETUP ---
 try:
-    GOOGLE_API_key = st.secrets["GOOGLE_API_KEY"]
-    os.environ["GOOGLE_API_KEY"] = GOOGLE_API_key
+    GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
+    os.environ["GOOGLE_API_KEY"] = GOOGLE_API_KEY
 except (FileNotFoundError, KeyError):
     st.error("🤫 Google API Key not found. Please add it to your Streamlit secrets.")
     st.stop()
@@ -54,27 +54,34 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
         st.warning("Please provide both the Job Description and the Resume text.")
     else:
         with st.spinner('Gemini is performing a deep analysis... This might take a moment.'):
-            llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash-exp", temperature=0, safety_settings={ HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE, HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE, HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE, HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE, })
+            llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash-exp", temperature=0.2, safety_settings={ HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE, HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE, HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE, HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE, })
             
-            # FINAL, MASTER PROMPT
+            # BALANCED AND REFINED PROMPT
             prompt_template_str = """
-            You are a highly advanced AI hiring assistant. Your task is to provide a strict, objective, and data-driven analysis of a resume against a job description.
+            You are a highly advanced AI hiring assistant. Your task is to provide a strict but fair analysis of a resume against a job description.
 
             ---
-            STRICT EVALUATION RULES:
-            The following rules are in order of importance. Rule 2 is the most important. If Rule 2 is triggered, it overrides all other scoring rules.
+            EVALUATION RULES:
+            1.  **Eligibility Check (Top Priority):** First, verify hard eligibility criteria like graduation year. If a candidate is ineligible (e.g., graduates in 2025 when 2023 or earlier is required), you MUST follow these specific instructions:
+                - "education_level" MUST be "Low".
+                - "recommendation_score" MUST be exactly 40.
+                - "relevance_score" and "skills_match" should be lowered but still reflect their raw skills (around 50-55% if skills are otherwise strong).
+                - The "recommendation_summary" MUST start by stating the ineligibility.
 
-            1.  **Eligibility First:** Before analyzing skills, you MUST first verify hard eligibility criteria mentioned in the job description, such as graduation year or degree.
-            2.  **Penalize Ineligibility (MASTER RULE):** If a candidate fails ANY hard eligibility criterion (e.g., their graduation year is 2025 when "2023 and earlier" is required), you MUST follow these instructions exactly: the "education_level" MUST be "Low", and the "recommendation_score" MUST BE exactly 40. The "relevance_score" and "skills_match" should also be significantly reduced. The summary MUST start by stating the reason for ineligibility.
-            3.  **Strict Skill Matching:** Base your analysis STRICTLY on the text provided. Do not infer or assume skills. If the job requires "Spark", "Pandas" is not a substitute.
-            4.  **Prioritize Role:** Prioritize analysis for the 'Data Science Intern' role if multiple roles are present.
-            5.  **Penalize Major Skill Gaps:** If a candidate is eligible, but their skill set is for a different role (e.g., 'Business Analyst' for a 'Data Scientist' job) and they are missing core skills (like Machine Learning, Deep Learning, and Spark), then the "skills_match" MUST NOT exceed 40%, the "relevance_score" MUST NOT exceed 60%, and the "recommendation_score" MUST be around 55.
+            2.  **Eligible Candidate Skill Gap:** If a candidate is eligible, but their skill set is for a different role (e.g., 'Business Analyst' for a 'Data Scientist' job) and they are missing core skills (like Machine Learning, Spark), then:
+                - The "skills_match" should be low (around 30%).
+                - The "relevance_score" should be moderate (around 60%).
+                - The "recommendation_score" should be around 55.
+
+            3.  **General Rules:**
+                - Prioritize analysis for the 'Data Science Intern' role if multiple roles are present.
+                - Base your analysis STRICTLY on the text provided. Do not infer skills.
             ---
 
             RESPONSE FORMAT:
             Provide ONLY a raw JSON response with the following keys:
             - "relevance_score": An integer (0-100).
-            - "skills_match": A percentage string (e.g., "30%").
+            - "skills_match": A percentage string (e.g., "50%").
             - "years_experience": A string (e.g., "0 years").
             - "education_level": A description: "High", "Medium", or "Low".
             - "matched_skills": A list of up to 7 skills.
@@ -102,6 +109,8 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
                     analysis_result = json.loads(json_text)
                 else:
                     raise ValueError("No valid JSON object found in the AI's response.")
+                
+                # The rest of your Streamlit display code remains the same...
                 
                 word_count_status = get_word_count_status(resume_text)
                 repetition_status = get_repetition_status(resume_text)
