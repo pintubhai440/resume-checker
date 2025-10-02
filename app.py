@@ -11,12 +11,8 @@ import time
 # --- Helper Functions for Resume Quality Analysis ---
 
 def get_word_count_status(text):
-    """
-    Analyze resume word count with context for freshers.
-    A fresher/intern resume is often shorter.
-    """
+    """Analyze resume word count with context for freshers."""
     word_count = len(text.split())
-    # CHANGED: Lowered the threshold. For a fresher, 250+ words is good. 400+ is for experienced roles.
     if word_count < 250:
         return f"⚠️ Too Short ({word_count} words)"
     elif 250 <= word_count <= 600:
@@ -94,9 +90,10 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
     if not resume_text.strip() or not job_description.strip():
         st.warning("⚠️ Please provide both the Job Description and the Resume text.")
     else:
-        with st.spinner('🔍 Gemini is performing a nuanced analysis... This might take 20-30 seconds.'):
+        with st.spinner('🔍 Gemini Pro is performing a deep analysis... This might take a moment.'):
+            # --- BRAIN UPGRADE: Using a more powerful model for higher accuracy ---
             llm = ChatGoogleGenerativeAI(
-                model="gemini-2.5-flash-lite", 
+                model="gemini-2.5-pro-preview-03-25", 
                 temperature=0.1,
                 safety_settings={
                     HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
@@ -107,28 +104,26 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
             )
             
             try:
-                # FIXED: The entire prompt is re-engineered for nuance and accuracy.
+                # --- SMARTER PROMPT: More direct, evidence-based instructions ---
                 analysis_prompt_template = """
-                You are a highly intelligent and nuanced Senior Technical Recruiter. Your task is to analyze a candidate's RESUME against a JOB DESCRIPTION that may contain one or more roles. Your analysis must be balanced, recognizing strong fits even if they aren't a 100% match for every listed skill.
+                You are an expert Senior Technical Recruiter. Your task is to be ruthlessly objective and analyze a RESUME against a JOB DESCRIPTION. Your entire analysis MUST be based strictly on the evidence present in the text.
 
-                **YOUR STEP-BY-STEP ANALYSIS PROCESS:**
+                **ANALYSIS RULES:**
 
-                1.  **Identify Roles:** First, analyze the JOB DESCRIPTION. Identify if it contains distinct roles (e.g., 'Data Scientist Intern', 'Data Engineer Intern').
+                1.  **Identify Roles & Core Skills:** Analyze the JOB DESCRIPTION to find the distinct roles (e.g., 'Data Scientist', 'Data Engineer'). For each role, identify the **Core Mandatory Skills**. These are non-negotiable for the role.
 
-                2.  **Differentiate Skills for EACH Role:** For EACH role you identify, create two lists of skills:
-                    * **Core Requirements:** These are the absolute must-have skills mentioned for that specific role (e.g., Python, SQL, Spark for a Data Engineer).
-                    * **Advantageous Skills:** These are 'good-to-have' skills or tools mentioned as a plus (e.g., Databricks, specific visualization tools like Tableau).
+                2.  **Evidence-Based Matching (CRITICAL RULE):**
+                    * Scrutinize the RESUME. A skill is 'matched' ONLY IF IT IS **EXPLICITLY WRITTEN** in the resume.
+                    * **DO NOT INFER OR HALLUCINATE SKILLS.** If 'PyTorch' is not written, the candidate does not know PyTorch. No exceptions.
 
-                3.  **Evaluate Candidate Against EACH Role:** Analyze the RESUME and compare it against the 'Core' and 'Advantageous' skill lists for EACH identified role.
-
-                4.  **Determine Best Fit and Score:**
-                    * Identify the single role for which the candidate is the **best fit**.
-                    * The `skills_match` percentage MUST be calculated based on the match with the **Core Requirements** of their BEST FIT role.
-                    * The `recommendation_score` should be heavily weighted on this core skills match. A candidate matching >80% of CORE skills for a role is a strong candidate (recommendation > 80), even if they miss some advantageous skills.
-                    * An average candidate might match some core skills (e.g., Python, SQL) but miss others, resulting in a 40-60% score.
-                    * A poor candidate will miss most core skills, resulting in a score < 30%.
-
-                5.  **Identify Missing Skills:** List only the **Core Requirements** that the candidate is missing for their best-fit role. Do not list advantageous skills here unless they are critically important.
+                3.  **Scoring Logic:**
+                    * First, determine the candidate's best-fit role from the JD.
+                    * `skills_match`: Calculate as (% of **Core Mandatory Skills** matched for the best-fit role).
+                    * `recommendation_score`: This MUST reflect the `skills_match` and overall quality.
+                        * **Excellent (>80% core skills):** Score > 85.
+                        * **Average (~40-60% core skills):** Score 40-60.
+                        * **Poor (<30% core skills):** Score < 30.
+                    * `missing_skills`: List ONLY the **Core Mandatory Skills** the candidate is missing for their best-fit role.
 
                 **JOB DESCRIPTION:**
                 {jd}
@@ -136,7 +131,7 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
                 **RESUME:**
                 {resume}
 
-                **RETURN ONLY a raw JSON object in the following exact format. Be very precise with scores.**
+                **RETURN ONLY a raw JSON object. Be brutally honest and precise.**
                 {{
                     "relevance_score": 92,
                     "skills_match": 90,
@@ -144,7 +139,7 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
                     "education_level": "High",
                     "matched_skills": ["Python", "SQL", "Spark", "Generative AI", "Computer Vision", "NLP", "Tableau", "Power BI", "Pandas"],
                     "missing_skills": ["Hadoop"],
-                    "recommendation_summary": "This is an excellent candidate and a strong fit for the Data Science Intern role. They possess nearly all core requirements, including hands-on project experience in Generative AI, CV, and data engineering. Highly recommended for an interview.",
+                    "recommendation_summary": "This is an exceptional candidate for the Data Science Intern role. They possess over 90% of the core requirements and demonstrate strong, relevant project experience. Highly recommended for an interview.",
                     "uses_action_verbs": true,
                     "has_quantifiable_results": true,
                     "recommendation_score": 95
@@ -165,6 +160,7 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
                 analysis_result = json.loads(cleaned_json)
 
                 # --- DISPLAY RESULTS ---
+                # This section remains the same as it correctly displays the data from the AI
                 word_count_status = get_word_count_status(resume_text)
                 repetition_status = get_repetition_status(resume_text)
 
@@ -250,9 +246,8 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
                     st.markdown(f'<div class="metric-card"><p class="label">Quantifiable Results</p><p class="value">{quant_results}</p></div>', unsafe_allow_html=True)
 
                 st.divider()
-                
-                report_text = f"""...""" # Report text logic is unchanged
-                
+                # Your report generation logic can remain here
+                report_text = "..."
                 st.download_button(
                     label="📥 Download Comprehensive Report",
                     data=report_text,
@@ -270,4 +265,9 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
 
 # Add footer with information
 st.divider()
-st.markdown("""...""") # Footer is unchanged
+st.markdown("""
+<div style='text-align: center; color: #666; font-size: 14px;'>
+    <p>🔍 <strong>Advanced AI Resume Checker</strong> | Uses Gemini AI for precise resume analysis</p>
+    <p>Provides realistic scoring based on actual content matching between resume and job requirements</p>
+</div>
+""", unsafe_allow_html=True)
