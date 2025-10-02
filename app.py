@@ -8,39 +8,22 @@ from langchain.prompts import PromptTemplate
 from collections import Counter
 
 # --- Helper Functions for Resume Quality Analysis (No Changes Here) ---
-
 def get_word_count_status(text):
-    """Checks the word count and returns a detailed status message."""
     word_count = len(text.split())
-    if word_count < 50:
-        return f"⚠️ Too Short ({word_count} words)"
-    elif 50 <= word_count <= 1000:
-        return f"✅ Optimal Length ({word_count} words)"
-    else:
-        return f"⚠️ Exceeded Max Limit ({word_count} words)"
+    if word_count < 50: return f"⚠️ Too Short ({word_count} words)"
+    elif 50 <= word_count <= 1000: return f"✅ Optimal Length ({word_count} words)"
+    else: return f"⚠️ Exceeded Max Limit ({word_count} words)"
 
 def get_repetition_status(text):
-    """
-    Checks for keyword repetition, ignoring common stop words and punctuation,
-    to ensure good keyword distribution.
-    """
-    stop_words = {
-        'the', 'in', 'or', 'and', 'a', 'an', 'to', 'is', 'of', 'for', 'with', 'on', 'it', 'i', 'was',
-        'are', 'as', 'at', 'be', 'by', 'that', 'this', 'from', 'my', 'we', 'our', 'you', 'your'
-    }
+    stop_words = {'the', 'in', 'or', 'and', 'a', 'an', 'to', 'is', 'of', 'for', 'with', 'on', 'it', 'i', 'was', 'are', 'as', 'at', 'be', 'by', 'that', 'this', 'from', 'my', 'we', 'our', 'you', 'your'}
     clean_text = re.sub(r'[^\w\s]', '', text.lower())
     words = [word for word in clean_text.split() if word not in stop_words]
-    
-    if not words:
-        return "✅ Good keyword distribution"
-    
+    if not words: return "✅ Good keyword distribution"
     word_counts = Counter(words)
     total_words = len(words)
     most_common_word, count = word_counts.most_common(1)[0]
     repetition_percentage = (count / total_words) * 100
-    
-    if repetition_percentage > 5:
-        return f"⚠️ High repetition of '{most_common_word}'"
+    if repetition_percentage > 5: return f"⚠️ High repetition of '{most_common_word}'"
     return "✅ Good keyword distribution"
 
 # --- UI SETUP ---
@@ -55,24 +38,6 @@ try:
 except (FileNotFoundError, KeyError):
     st.error("🤫 Google API Key not found. Please add it to your Streamlit secrets.")
     st.stop()
-    
-# --- PERFORMANCE FIX: Cache the AI model to prevent reloading on each run ---
-@st.cache_resource
-def load_llm():
-    """Loads and caches the Gemini LLM model."""
-    llm = ChatGoogleGenerativeAI(
-        # CRITICAL FIX: Using a valid and stable model name
-        model="gemini-2.0-flash-exp",
-        temperature=0,
-        # Safety settings are important to prevent the model from blocking valid requests
-        safety_settings={
-            HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
-            HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
-            HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
-            HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
-        },
-    )
-    return llm
 
 # --- LAYOUT ---
 col1, col2 = st.columns(2, gap="large")
@@ -85,38 +50,40 @@ with col2:
 
 # --- ANALYSIS BUTTON & LOGIC ---
 if st.button("Analyze with Gemini AI", use_container_width=True, type="primary"):
-    
     if not resume_text or not job_description:
         st.warning("Please provide both the Job Description and the Resume text.")
     else:
         with st.spinner('Gemini is performing a deep analysis... This might take a moment.'):
-            # Load the cached model
-            llm = load_llm()
+            llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash-exp", temperature=0.2, safety_settings={ HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE, HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE, HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE, HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE, })
             
-            # IMPROVED PROMPT with stricter rules
             prompt_template_str = """
-            You are a highly advanced AI hiring assistant. Your task is to provide a strict, objective, and data-driven analysis of a resume against a job description.
+            You are a highly advanced AI hiring assistant. Your task is to provide a strict and fair analysis of a resume against a job description.
 
             ---
-            STRICT EVALUATION RULES:
-            1.  **Eligibility First:** Before analyzing skills, you MUST first verify hard eligibility criteria mentioned in the job description, such as graduation year, degree, or required certifications.
-            2.  **Penalize Ineligibility:** If a candidate fails ANY hard eligibility criterion (e.g., their graduation year is 2025 when "2023 and earlier" is required), the "education_level" MUST be "Low", the "recommendation_score" MUST NOT exceed 40, and the "recommendation_summary" must start by stating the reason for ineligibility.
-            3.  **Strict Skill Matching:** Base your analysis STRICTLY on the text provided. Do not infer or assume any skills or experiences not explicitly mentioned. If the job requires "Spark", do not consider "Pandas" as a direct substitute.
+            **EVALUATION PROCESS TO FOLLOW:**
+            You must follow these steps in order:
+            1.  **Step 1: Comprehensive Skill Extraction:** Read the ENTIRE resume (Skills, Projects, Education, Experience sections) and create a comprehensive internal list of all technical skills and technologies the candidate possesses. For example, if a project mentions 'LSTM', you MUST add 'Deep Learning' to the candidate's skill list. If the education is in 'Artificial Intelligence & Machine Learning', you MUST add 'Machine Learning' to the skill list.
+            2.  **Step 2: Eligibility Check:** After extracting skills, check for hard eligibility criteria like graduation year.
+            3.  **Step 3: Skill Comparison & Scoring:** Compare the comprehensive skill list from Step 1 against the skills required in the job description. Then, apply the Scoring Rules below to determine the final scores.
+            4.  **Step 4: JSON Generation:** Generate the final JSON output according to the format and scoring rules.
             ---
-
-            RESPONSE FORMAT:
-            You must provide ONLY a raw JSON response. Do not include any introductory text, explanations, or markdown formatting like ```json. The response must contain the following keys:
+            **SCORING RULES:**
+            -   **Ineligibility Rule (Top Priority):** If the candidate from Step 2 is ineligible (e.g., graduates in 2025 when 2023 or earlier is required), then: "education_level" MUST be "Low", "recommendation_score" MUST be exactly 40, "relevance_score" and "skills_match" should be lowered but still reflect their raw skills (around 50-55%), and the summary MUST start by stating the ineligibility.
+            -   **Eligible Skill Gap Rule:** If the candidate is eligible, but their skill set is for a different role (e.g., 'Business Analyst' for a 'Data Scientist' job), then: the "skills_match" should be low (around 30%), the "relevance_score" should be moderate (around 60%), and the "recommendation_score" should be around 55.
+            -   **Role Priority Rule:** Prioritize analysis for the 'Data Science Intern' role.
+            ---
+            **RESPONSE FORMAT:**
+            Provide ONLY a raw JSON response with the following keys:
             - "relevance_score": An integer (0-100).
-            - "skills_match": A percentage string (e.g., "85%").
-            - "years_experience": A string representing the candidate's total relevant experience (e.g., "0 years", "3 years").
-            - "education_level": A description: "High" (meets or exceeds), "Medium" (partially meets), or "Low" (does not meet eligibility).
-            - "matched_skills": A list of up to 7 skills the candidate has that are required by the job.
-            - "missing_skills": A list of up to 3 critical skills required by the job but absent from the resume.
-            - "recommendation_summary": A concise, 2-sentence summary of the candidate's fit.
+            - "skills_match": A percentage string (e.g., "50%").
+            - "years_experience": A string (e.g., "0 years").
+            - "education_level": A description: "High", "Medium", or "Low".
+            - "matched_skills": A list of up to 7 skills.
+            - "missing_skills": A list of up to 3 critical skills.
+            - "recommendation_summary": A concise, 2-sentence summary.
             - "uses_action_verbs": A boolean (true/false).
             - "has_quantifiable_results": A boolean (true/false).
-            - "recommendation_score": An integer (0-100) representing your overall confidence.
-
+            - "recommendation_score": An integer (0-100).
             Resume: {resume}
             Job Description: {jd}
             """
@@ -129,7 +96,6 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
                 response = chain.invoke({"resume": resume_text, "jd": job_description})
                 response_text = response.content.strip()
                 
-                # Robustly find and parse the JSON object from the response
                 json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
                 if json_match:
                     json_text = json_match.group(0)
@@ -177,19 +143,28 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
                 action_verbs = "✅ Yes" if analysis_result.get('uses_action_verbs') else "⚠️ No"
                 quant_results = "✅ Yes" if analysis_result.get('has_quantifiable_results') else "⚠️ No"
 
-                # Using st.columns for the metric cards for better alignment
+                st.markdown("""
+                <style>
+                .metric-card { background-color: #F0F2F6; border-radius: 10px; padding: 15px; text-align: center; border: 1px solid #E0E0E0; }
+                .metric-card p.label { font-size: 14px; color: #555; margin-bottom: 5px; }
+                .metric-card p.value { font-size: 16px; font-weight: bold; color: #333; margin: 0; }
+                </style>
+                """, unsafe_allow_html=True)
+
                 add_col1, add_col2, add_col3, add_col4 = st.columns(4)
                 with add_col1:
-                    st.metric(label="Word Count", value=word_count_status)
+                    st.markdown(f'<div class="metric-card"><p class="label">Word Count</p><p class="value">{word_count_status}</p></div>', unsafe_allow_html=True)
                 with add_col2:
-                    st.metric(label="Keyword Repetition", value=repetition_status)
+                    st.markdown(f'<div class="metric-card"><p class="label">Keyword Repetition</p><p class="value">{repetition_status}</p></div>', unsafe_allow_html=True)
                 with add_col3:
-                    st.metric(label="Uses Action Verbs?", value=action_verbs)
+                    # THE FIX IS HERE: unsafe__html is now unsafe_allow_html
+                    st.markdown(f'<div class="metric-card"><p class="label">Uses Action Verbs?</p><p class="value">{action_verbs}</p></div>', unsafe_allow_html=True)
                 with add_col4:
-                    st.metric(label="Quantifiable Results?", value=quant_results)
+                    st.markdown(f'<div class="metric-card"><p class="label">Quantifiable Results?</p><p class="value">{quant_results}</p></div>', unsafe_allow_html=True)
 
                 st.divider()
-
+                
+                # ... (rest of the code is the same)
                 report_text = f"""
 AI RESUME ANALYSIS REPORT
 =========================
