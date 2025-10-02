@@ -56,41 +56,36 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
         with st.spinner('Gemini is performing a deep analysis... This might take a moment.'):
             llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash-exp", temperature=0, safety_settings={ HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE, HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE, HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE, HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE, })
             
-            # FINAL PROMPT WITH DECISION TREE LOGIC
+            # ULTIMATE PROMPT with IF/ELSE Logic
             prompt_template_str = """
-            You are a highly advanced AI hiring assistant. Your task is to provide a strict, objective analysis by following a decision process.
+            You are a highly advanced and strict AI hiring assistant. You MUST follow the rules below precisely.
 
             ---
-            **DECISION PROCESS:**
+            **PRIMARY EVALUATION RULE (Follow this logic):**
 
-            **STEP 1: Check Hard Eligibility.**
-            [cite_start]First, check for hard eligibility criteria (e.g., degree must be B.Tech/BE [cite: 185, 208][cite_start], graduation year must be 2023 or earlier [cite: 186, 209]).
+            **FIRST, AND MOST IMPORTANTLY, check for hard eligibility criteria.** For this job, the degree MUST be 'B.Tech' or 'BE' and the graduation year MUST be 2023 or earlier.
 
-            **STEP 2: Apply Scoring Rules based on Eligibility.**
-
-            * **IF THE CANDIDATE IS INELIGIBLE (from Step 1):**
-                You MUST use the following exact scores:
+            * **IF a candidate is INELIGIBLE** (fails the degree OR graduation year check):
+                You MUST STOP all other analysis and generate the JSON using these EXACT values:
                 - "education_level": "Low"
                 - "relevance_score": 40
                 - "skills_match": "30%"
                 - "recommendation_score": 40
-                Your summary MUST start by stating the reason for ineligibility. Then, stop and generate the JSON.
+                Your "recommendation_summary" MUST start by stating the exact reason for ineligibility (e.g., "The candidate is ineligible due to their graduation year..."). You must still populate the matched/missing skills lists based on a quick analysis.
 
-            * **IF THE CANDIDATE IS ELIGIBLE (from Step 1):**
-                Proceed to analyze their skills. Check if their profile is for a different role (e.g., a 'Business Analyst' applying for a 'Data Scientist' job) and they are missing all core Data Science skills (Machine Learning, Deep Learning, Spark).
-                * **If YES, there is a major skill gap:**
-                    You MUST use the following exact scores:
+            * **ELSE, IF a candidate is ELIGIBLE:**
+                You will then perform a detailed skill analysis.
+                * If the eligible candidate's profile is a **poor match for the role** (e.g., a 'Business Analyst' applying for a 'Data Scientist' role and missing all core skills like Machine Learning, Deep Learning, and Spark), then you MUST use these exact scores:
                     - "education_level": "High"
                     - "relevance_score": 60
                     - "skills_match": "30%"
                     - "recommendation_score": 55
-                * **If NO, the skills are a good match:**
-                    Score them highly based on their qualifications (e.g., recommendation_score > 75).
+                * If the eligible candidate's profile is a **strong match for the role**, score them highly (recommendation_score > 75).
 
-            **GENERAL RULES:**
-            - Always populate all fields in the JSON, including matched/missing skills.
-            - [cite_start]Prioritize the 'Data Science Intern' role[cite: 175].
-            - Base your analysis STRICTLY on the text provided.
+            **General Instructions:**
+            - Always populate all JSON fields.
+            - Prioritize the 'Data Science Intern' role.
+            - Analyze ONLY the text provided.
             ---
 
             **RESPONSE FORMAT:**
