@@ -56,29 +56,22 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
         with st.spinner('Gemini is performing a deep analysis... This might take a moment.'):
             llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash-exp", temperature=0.2, safety_settings={ HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE, HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE, HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE, HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE, })
             
-            # FINAL, MOST ROBUST PROMPT WITH A STEP-BY-STEP PROCESS
             prompt_template_str = """
-            You are a highly advanced AI hiring assistant. Your task is to provide a strict and fair analysis of a resume against a job description by following a specific process.
+            You are a highly advanced AI hiring assistant. Your task is to provide a strict and fair analysis of a resume against a job description.
 
             ---
             **EVALUATION PROCESS TO FOLLOW:**
             You must follow these steps in order:
-
             1.  **Step 1: Comprehensive Skill Extraction:** Read the ENTIRE resume (Skills, Projects, Education, Experience sections) and create a comprehensive internal list of all technical skills and technologies the candidate possesses. For example, if a project mentions 'LSTM', you MUST add 'Deep Learning' to the candidate's skill list. If the education is in 'Artificial Intelligence & Machine Learning', you MUST add 'Machine Learning' to the skill list.
-
             2.  **Step 2: Eligibility Check:** After extracting skills, check for hard eligibility criteria like graduation year.
-
             3.  **Step 3: Skill Comparison & Scoring:** Compare the comprehensive skill list from Step 1 against the skills required in the job description. Then, apply the Scoring Rules below to determine the final scores.
-
             4.  **Step 4: JSON Generation:** Generate the final JSON output according to the format and scoring rules.
             ---
-
             **SCORING RULES:**
             -   **Ineligibility Rule (Top Priority):** If the candidate from Step 2 is ineligible (e.g., graduates in 2025 when 2023 or earlier is required), then: "education_level" MUST be "Low", "recommendation_score" MUST be exactly 40, "relevance_score" and "skills_match" should be lowered but still reflect their raw skills (around 50-55%), and the summary MUST start by stating the ineligibility.
             -   **Eligible Skill Gap Rule:** If the candidate is eligible, but their skill set is for a different role (e.g., 'Business Analyst' for a 'Data Scientist' job), then: the "skills_match" should be low (around 30%), the "relevance_score" should be moderate (around 60%), and the "recommendation_score" should be around 55.
             -   **Role Priority Rule:** Prioritize analysis for the 'Data Science Intern' role.
             ---
-
             **RESPONSE FORMAT:**
             Provide ONLY a raw JSON response with the following keys:
             - "relevance_score": An integer (0-100).
@@ -91,7 +84,6 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
             - "uses_action_verbs": A boolean (true/false).
             - "has_quantifiable_results": A boolean (true/false).
             - "recommendation_score": An integer (0-100).
-
             Resume: {resume}
             Job Description: {jd}
             """
@@ -111,7 +103,6 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
                 else:
                     raise ValueError("No valid JSON object found in the AI's response.")
                 
-                # The rest of your Streamlit display code remains the same...
                 word_count_status = get_word_count_status(resume_text)
                 repetition_status = get_repetition_status(resume_text)
 
@@ -161,13 +152,51 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
                 """, unsafe_allow_html=True)
 
                 add_col1, add_col2, add_col3, add_col4 = st.columns(4)
-                with add_col1: st.markdown(f'<div class="metric-card"><p class="label">Word Count</p><p class="value">{word_count_status}</p></div>', unsafe_allow_html=True)
-                with add_col2: st.markdown(f'<div class="metric-card"><p class="label">Keyword Repetition</p><p class="value">{repetition_status}</p></div>', unsafe_allow_html=True)
-                with add_col3: st.markdown(f'<div class="metric-card"><p class="label">Uses Action Verbs?</p><p class="value">{action_verbs}</p></div>', unsafe__html=True)
-                with add_col4: st.markdown(f'<div class="metric-card"><p class="label">Quantifiable Results?</p><p class="value">{quant_results}</p></div>', unsafe_allow_html=True)
+                with add_col1:
+                    st.markdown(f'<div class="metric-card"><p class="label">Word Count</p><p class="value">{word_count_status}</p></div>', unsafe_allow_html=True)
+                with add_col2:
+                    st.markdown(f'<div class="metric-card"><p class="label">Keyword Repetition</p><p class="value">{repetition_status}</p></div>', unsafe_allow_html=True)
+                with add_col3:
+                    # THE FIX IS HERE: unsafe__html is now unsafe_allow_html
+                    st.markdown(f'<div class="metric-card"><p class="label">Uses Action Verbs?</p><p class="value">{action_verbs}</p></div>', unsafe_allow_html=True)
+                with add_col4:
+                    st.markdown(f'<div class="metric-card"><p class="label">Quantifiable Results?</p><p class="value">{quant_results}</p></div>', unsafe_allow_html=True)
 
                 st.divider()
+                
                 # ... (rest of the code is the same)
+                report_text = f"""
+AI RESUME ANALYSIS REPORT
+=========================
+FINAL VERDICT: {rec_text} ({recommendation_score}%)
+AI RELEVANCE SCORE: {analysis_result.get('relevance_score', 0)}%
+SKILLS MATCH: {analysis_result.get('skills_match', 'N/A')}
+YEARS' EXPERIENCE: {analysis_result.get('years_experience', 'N/A')}
+EDUCATION: {analysis_result.get('education_level', 'N/A')}
+
+RECOMMENDATION:
+{analysis_result.get('recommendation_summary', '')}
+
+RESUME QUALITY CHECKS:
+- Word Count: {word_count_status}
+- Repetition: {repetition_status}
+- Uses Action Verbs: {"Yes" if analysis_result.get('uses_action_verbs') else "No"}
+- Shows Quantifiable Results: {"Yes" if analysis_result.get('has_quantifiable_results') else "No"}
+
+MATCHED SKILLS:
+- {', '.join(analysis_result.get('matched_skills', []))}
+
+MISSING SKILLS:
+- {', '.join(analysis_result.get('missing_skills', []))}
+"""
+                st.download_button(
+                    label="⬇️ Download Full Report",
+                    data=report_text,
+                    file_name="resume_analysis_report.txt",
+                    mime="text/plain",
+                    use_container_width=True
+                )
+
             except Exception as e:
                 st.error(f"An unexpected error occurred: {e}")
                 st.text_area("Raw AI Response for debugging:", response_text, height=150)
