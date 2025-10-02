@@ -7,7 +7,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI, HarmBlockThreshold, H
 from langchain.prompts import PromptTemplate
 from collections import Counter
 
-# --- Helper Functions for Resume Quality Analysis ---
+# --- Helper Functions for Resume Quality Analysis (No Changes Here) ---
 
 def get_word_count_status(text):
     """Checks the word count and returns a detailed status message."""
@@ -28,7 +28,6 @@ def get_repetition_status(text):
         'the', 'in', 'or', 'and', 'a', 'an', 'to', 'is', 'of', 'for', 'with', 'on', 'it', 'i', 'was',
         'are', 'as', 'at', 'be', 'by', 'that', 'this', 'from', 'my', 'we', 'our', 'you', 'your'
     }
-    # Cleans the text by removing non-alphanumeric characters and converting to lowercase
     clean_text = re.sub(r'[^\w\s]', '', text.lower())
     words = [word for word in clean_text.split() if word not in stop_words]
     
@@ -45,13 +44,11 @@ def get_repetition_status(text):
     return "✅ Good keyword distribution"
 
 # --- UI SETUP ---
-# Page configuration is set with a wide layout and a title
 st.set_page_config(layout="wide", page_title="AI Resume Checker", page_icon="🚀")
 st.title("🚀 AI Resume Checker")
 st.write("Get consistent, accurate, and data-driven resume analysis with Gemini. This tool provides a relevance score, skill gap analysis, and more.")
 
 # --- API KEY & MODEL SETUP ---
-# Safely loads the API key from Streamlit's secrets management
 try:
     GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
     os.environ["GOOGLE_API_KEY"] = GOOGLE_API_KEY
@@ -61,7 +58,6 @@ except (FileNotFoundError, KeyError):
     
 
 # --- LAYOUT ---
-# The screen is divided into two columns for the job description and resume
 col1, col2 = st.columns(2, gap="large")
 with col1:
     st.header("📄 Job Requirements")
@@ -71,17 +67,15 @@ with col2:
     resume_text = st.text_area("Paste the Resume Text here", height=350, label_visibility="collapsed", placeholder="Enter the candidate's resume...")
 
 # --- ANALYSIS BUTTON & LOGIC ---
-# This logic runs when the user clicks the analysis button
 if st.button("Analyze with Gemini AI", use_container_width=True, type="primary"):
     
     if not resume_text or not job_description:
         st.warning("Please provide both the Job Description and the Resume text.")
     else:
         with st.spinner('Gemini is performing a deep analysis... This might take a moment.'):
-            # The Google Gemini AI model is configured
             llm = ChatGoogleGenerativeAI(
-                model="gemini-2.5-flash-lite", # Using the stable gemini-pro model
-                temperature=0, # Set to 0 for deterministic, consistent output
+                model="gemini-2.0-flash-exp", # CORRECTED: Using a valid and stable model
+                temperature=0,
                 safety_settings={
                     HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
                     HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
@@ -90,33 +84,35 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
                 },
             )
             
-            # A detailed prompt instructs the AI on its role and the desired JSON output format
+            # IMPROVED PROMPT with stricter rules
             prompt_template_str = """
-            You are a highly advanced AI hiring assistant and a data-driven analyst. Your task is to provide a strict, objective, and consistent analysis of a resume against a job description.
+            You are a highly advanced AI hiring assistant. Your task is to provide a strict, objective, and data-driven analysis of a resume against a job description.
 
-            IMPORTANT CONTEXT:
-            - The current date is October 2, 2025. Calculate experience durations based on this date.
-            - Base your entire analysis STRICTLY on the text provided in the resume and job description. Do not infer or assume any skills or experiences not explicitly mentioned.
+            ---
+            STRICT EVALUATION RULES:
+            1.  **Eligibility First:** Before analyzing skills, you MUST first verify hard eligibility criteria mentioned in the job description, such as graduation year, degree, or required certifications.
+            2.  **Penalize Ineligibility:** If a candidate fails ANY hard eligibility criterion (e.g., their graduation year is 2025 when "2023 and earlier" is required), the "education_level" MUST be "Low", the "recommendation_score" MUST NOT exceed 40, and the "recommendation_summary" must start by stating the reason for ineligibility.
+            3.  **Strict Skill Matching:** Base your analysis STRICTLY on the text provided. Do not infer or assume any skills or experiences not explicitly mentioned. If the job requires "Spark", do not consider "Pandas" as a direct substitute.
+            ---
 
             RESPONSE FORMAT:
             You must provide ONLY a raw JSON response. Do not include any introductory text, explanations, or markdown formatting like ```json. The response must contain the following keys:
-            - "relevance_score": An integer (0-100) representing how well the resume's experience and skills align with the job requirements.
-            - "skills_match": A percentage string (e.g., "85%") calculated from the required skills found in the resume.
-            - "years_experience": A string representing the candidate's total relevant experience (e.g., "3 years", "5+ years"). Be precise.
-            - "education_level": A brief alignment description: "High" (meets or exceeds), "Medium" (partially meets), or "Low" (does not meet).
-            - "matched_skills": A list of up to 7 skills the candidate possesses that are also mentioned in the job description.
+            - "relevance_score": An integer (0-100).
+            - "skills_match": A percentage string (e.g., "85%").
+            - "years_experience": A string representing the candidate's total relevant experience (e.g., "0 years", "3 years").
+            - "education_level": A description: "High" (meets or exceeds), "Medium" (partially meets), or "Low" (does not meet eligibility).
+            - "matched_skills": A list of up to 7 skills the candidate has that are required by the job.
             - "missing_skills": A list of up to 3 critical skills required by the job but absent from the resume.
-            - "recommendation_summary": A concise, 2-sentence summary of the candidate's fit, highlighting strengths and weaknesses objectively.
-            - "uses_action_verbs": A boolean (true/false). True if the resume uses action verbs (e.g., "Managed", "Developed", "Led").
-            - "has_quantifiable_results": A boolean (true/false). True if the resume includes achievements with numbers or metrics (e.g., "increased efficiency by 20%", "managed a budget of $50k").
-            - "recommendation_score": An integer (0-100) representing your overall confidence in the candidate, combining all factors.
+            - "recommendation_summary": A concise, 2-sentence summary of the candidate's fit.
+            - "uses_action_verbs": A boolean (true/false).
+            - "has_quantifiable_results": A boolean (true/false).
+            - "recommendation_score": An integer (0-100) representing your overall confidence.
 
             Resume: {resume}
             Job Description: {jd}
             """
 
             prompt = PromptTemplate(input_variables=["resume", "jd"], template=prompt_template_str)
-            # The LangChain Expression Language (LCEL) chain is created
             chain = prompt | llm
             
             response_text = ""
@@ -124,7 +120,6 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
                 response = chain.invoke({"resume": resume_text, "jd": job_description})
                 response_text = response.content.strip()
                 
-                # A more robust method to find and parse the JSON object from the AI's response
                 json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
                 if json_match:
                     json_text = json_match.group(0)
@@ -132,36 +127,29 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
                 else:
                     raise ValueError("No valid JSON object found in the AI's response.")
                 
-                # Helper functions are called to get resume quality metrics
                 word_count_status = get_word_count_status(resume_text)
                 repetition_status = get_repetition_status(resume_text)
 
                 st.divider()
                 st.header("📊 Analysis Results")
 
-                # The final verdict is determined based on the recommendation score
                 recommendation_score = analysis_result.get('recommendation_score', 0)
                 if recommendation_score >= 75:
-                    rec_color = "green"
-                    rec_text = "Highly Recommended"
+                    rec_color, rec_text = "green", "Highly Recommended"
                 elif recommendation_score >= 50:
-                    rec_color = "orange"
-                    rec_text = "Worth Considering"
+                    rec_color, rec_text = "orange", "Worth Considering"
                 else:
-                    rec_color = "red"
-                    rec_text = "Not a Strong Fit"
+                    rec_color, rec_text = "red", "Not a Strong Fit"
 
                 st.subheader(f"Final Verdict: :{rec_color}[{rec_text} ({recommendation_score}%)]")
-                st.progress(recommendation_score / 100) # The progress bar now correctly reflects the score
+                st.progress(recommendation_score / 100)
                 
-                # Key metrics are displayed in columns
                 res_col1, res_col2, res_col3, res_col4 = st.columns(4)
                 res_col1.metric("AI Relevance Score", f"{analysis_result.get('relevance_score', 0)}%")
                 res_col2.metric("Skills Match", analysis_result.get('skills_match', 'N/A'))
                 res_col3.metric("Years' Experience", analysis_result.get('years_experience', 'N/A'))
                 res_col4.metric("Education Level", analysis_result.get('education_level', 'N/A'))
 
-                # Skills analysis is presented
                 st.subheader("Skills Analysis")
                 skill_col1, skill_col2 = st.columns(2)
                 with skill_col1:
@@ -171,37 +159,19 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
                     st.warning("❗️ Missing Skills")
                     st.write(", ".join(analysis_result.get('missing_skills', ["None found"])))
 
-                # The AI's summary recommendation is displayed
                 st.subheader("💡 Recommendation")
                 st.info(analysis_result.get('recommendation_summary', 'No summary available.'))
                 
-                # Additional resume quality checks are shown
                 st.subheader("Resume Quality Checks")
                 
                 action_verbs = "✅ Yes" if analysis_result.get('uses_action_verbs') else "⚠️ No"
                 quant_results = "✅ Yes" if analysis_result.get('has_quantifiable_results') else "⚠️ No"
 
-                # Custom HTML and CSS are used to create styled metric cards for better UI
                 st.markdown("""
                 <style>
-                .metric-card {
-                    background-color: #F0F2F6;
-                    border-radius: 10px;
-                    padding: 15px;
-                    text-align: center;
-                    border: 1px solid #E0E0E0;
-                }
-                .metric-card p.label {
-                    font-size: 14px;
-                    color: #555;
-                    margin-bottom: 5px;
-                }
-                .metric-card p.value {
-                    font-size: 16px;
-                    font-weight: bold;
-                    color: #333;
-                    margin: 0;
-                }
+                .metric-card { background-color: #F0F2F6; border-radius: 10px; padding: 15px; text-align: center; border: 1px solid #E0E0E0; }
+                .metric-card p.label { font-size: 14px; color: #555; margin-bottom: 5px; }
+                .metric-card p.value { font-size: 16px; font-weight: bold; color: #333; margin: 0; }
                 </style>
                 """, unsafe_allow_html=True)
 
@@ -217,7 +187,6 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
 
                 st.divider()
 
-                # A text report is generated for downloading
                 report_text = f"""
 AI RESUME ANALYSIS REPORT
 =========================
@@ -225,6 +194,7 @@ FINAL VERDICT: {rec_text} ({recommendation_score}%)
 AI RELEVANCE SCORE: {analysis_result.get('relevance_score', 0)}%
 SKILLS MATCH: {analysis_result.get('skills_match', 'N/A')}
 YEARS' EXPERIENCE: {analysis_result.get('years_experience', 'N/A')}
+EDUCATION: {analysis_result.get('education_level', 'N/A')}
 
 RECOMMENDATION:
 {analysis_result.get('recommendation_summary', '')}
@@ -241,7 +211,6 @@ MATCHED SKILLS:
 MISSING SKILLS:
 - {', '.join(analysis_result.get('missing_skills', []))}
 """
-                # A download button for the full report is provided
                 st.download_button(
                     label="⬇️ Download Full Report",
                     data=report_text,
@@ -250,8 +219,6 @@ MISSING SKILLS:
                     use_container_width=True
                 )
 
-            # Catches any exceptions during the API call or data processing
             except Exception as e:
                 st.error(f"An unexpected error occurred: {e}")
                 st.text_area("Raw AI Response for debugging:", response_text, height=150)
-
