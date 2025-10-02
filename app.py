@@ -95,7 +95,7 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
     else:
         with st.spinner('🔍 Gemini is performing comprehensive analysis... This might take 20-30 seconds.'):
             llm = ChatGoogleGenerativeAI(
-                model="gemini-2.0-flash-thinking-exp",
+                model="gemini-2.0-flash-exp",
                 temperature=0.1,
                 safety_settings={
                     HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
@@ -302,3 +302,4 @@ st.markdown("""
     <p>Provides realistic scoring based on actual content matching between resume and job requirements</p>
 </div>
 """, unsafe_allow_html=True)
+
