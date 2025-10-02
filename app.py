@@ -74,7 +74,7 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
     else:
         with st.spinner('Gemini is performing a deep analysis... This might take a moment.'):
             llm = ChatGoogleGenerativeAI(
-                model="gemini-2.0-flash-exp", # CORRECTED: Using a valid and stable model
+                model="gemini-2.0-flash-exp", # Using a valid and stable model
                 temperature=0,
                 safety_settings={
                     HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
@@ -84,7 +84,7 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
                 },
             )
             
-            # IMPROVED PROMPT with stricter rules
+            # IMPROVED PROMPT with the 4th rule added
             prompt_template_str = """
             You are a highly advanced AI hiring assistant. Your task is to provide a strict, objective, and data-driven analysis of a resume against a job description.
 
@@ -93,6 +93,7 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
             1.  **Eligibility First:** Before analyzing skills, you MUST first verify hard eligibility criteria mentioned in the job description, such as graduation year, degree, or required certifications.
             2.  **Penalize Ineligibility:** If a candidate fails ANY hard eligibility criterion (e.g., their graduation year is 2025 when "2023 and earlier" is required), the "education_level" MUST be "Low", the "recommendation_score" MUST NOT exceed 40, and the "recommendation_summary" must start by stating the reason for ineligibility.
             3.  **Strict Skill Matching:** Base your analysis STRICTLY on the text provided. Do not infer or assume any skills or experiences not explicitly mentioned. If the job requires "Spark", do not consider "Pandas" as a direct substitute.
+            4.  **Prioritize analysis for the 'Data Science Intern' role if multiple roles are present in the job description.**
             ---
 
             RESPONSE FORMAT:
