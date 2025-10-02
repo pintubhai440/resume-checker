@@ -93,7 +93,7 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
         with st.spinner('🔍 Gemini Pro is performing a deep analysis... This might take a moment.'):
             # --- BRAIN UPGRADE: Using a more powerful model for higher accuracy ---
             llm = ChatGoogleGenerativeAI(
-                model="gemini-2.5-pro-preview-03-25", 
+                model="gemini-2.5-flash-lite", 
                 temperature=0.1,
                 safety_settings={
                     HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
@@ -271,3 +271,4 @@ st.markdown("""
     <p>Provides realistic scoring based on actual content matching between resume and job requirements</p>
 </div>
 """, unsafe_allow_html=True)
+
