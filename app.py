@@ -56,29 +56,45 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
         with st.spinner('Gemini is performing a deep analysis... This might take a moment.'):
             llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash-exp", temperature=0, safety_settings={ HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE, HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE, HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE, HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE, })
             
+            # FINAL PROMPT WITH DECISION TREE LOGIC
             prompt_template_str = """
-            You are a highly advanced AI hiring assistant. Your task is to provide a strict, objective, and data-driven analysis of a resume against a job description.
+            You are a highly advanced AI hiring assistant. Your task is to provide a strict, objective analysis by following a decision process.
 
             ---
-            **EVALUATION RULES:**
-            Your most important task is to check for hard eligibility criteria (like graduation year or degree).
+            **DECISION PROCESS:**
 
-            **RULE 1 (INELIGIBILITY OVERRIDE):** If a candidate fails ANY hard eligibility criterion (e.g., their degree is BBA when BE/B.Tech is required, or their graduation year is 2025 when 2023 or earlier is required), you MUST generate the JSON with the following exact values:
-            - "education_level": "Low"
-            - "relevance_score": 40
-            - "skills_match": "30%"
-            - "recommendation_score": 40
-            The "recommendation_summary" MUST start by stating the exact reason for ineligibility. You must still provide the full "matched_skills" and "missing_skills" analysis.
+            **STEP 1: Check Hard Eligibility.**
+            [cite_start]First, check for hard eligibility criteria (e.g., degree must be B.Tech/BE [cite: 185, 208][cite_start], graduation year must be 2023 or earlier [cite: 186, 209]).
 
-            **RULE 2 (ELIGIBLE CANDIDATES):** If the candidate is eligible, then perform a detailed skill analysis. If they have a major skill gap (e.g., 'Business Analyst' for a 'Data Scientist' job), then the "skills_match" should be low (around 30-40%), and the "recommendation_score" should be around 55.
+            **STEP 2: Apply Scoring Rules based on Eligibility.**
+
+            * **IF THE CANDIDATE IS INELIGIBLE (from Step 1):**
+                You MUST use the following exact scores:
+                - "education_level": "Low"
+                - "relevance_score": 40
+                - "skills_match": "30%"
+                - "recommendation_score": 40
+                Your summary MUST start by stating the reason for ineligibility. Then, stop and generate the JSON.
+
+            * **IF THE CANDIDATE IS ELIGIBLE (from Step 1):**
+                Proceed to analyze their skills. Check if their profile is for a different role (e.g., a 'Business Analyst' applying for a 'Data Scientist' job) and they are missing all core Data Science skills (Machine Learning, Deep Learning, Spark).
+                * **If YES, there is a major skill gap:**
+                    You MUST use the following exact scores:
+                    - "education_level": "High"
+                    - "relevance_score": 60
+                    - "skills_match": "30%"
+                    - "recommendation_score": 55
+                * **If NO, the skills are a good match:**
+                    Score them highly based on their qualifications (e.g., recommendation_score > 75).
 
             **GENERAL RULES:**
-            - Prioritize analysis for the 'Data Science Intern' role.
-            - Base your analysis STRICTLY on the text provided. Do not infer skills.
+            - Always populate all fields in the JSON, including matched/missing skills.
+            - [cite_start]Prioritize the 'Data Science Intern' role[cite: 175].
+            - Base your analysis STRICTLY on the text provided.
             ---
 
             **RESPONSE FORMAT:**
-            Provide ONLY a raw JSON response with the specified keys. Ensure all keys are present.
+            Provide ONLY a raw JSON response with the following keys:
             - "relevance_score": An integer (0-100).
             - "skills_match": A percentage string (e.g., "30%").
             - "years_experience": A string (e.g., "0 years").
@@ -173,13 +189,10 @@ AI RELEVANCE SCORE: {analysis_result.get('relevance_score', 0)}%
 SKILLS MATCH: {analysis_result.get('skills_match', 'N/A')}
 YEARS' EXPERIENCE: {analysis_result.get('years_experience', 'N/A')}
 EDUCATION: {analysis_result.get('education_level', 'N/A')}
-
 RECOMMENDATION:
 {analysis_result.get('recommendation_summary', '')}
-
 MATCHED SKILLS:
 - {', '.join(analysis_result.get('matched_skills', []))}
-
 MISSING SKILLS:
 - {', '.join(analysis_result.get('missing_skills', []))}
 """
