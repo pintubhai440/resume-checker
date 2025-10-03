@@ -144,58 +144,64 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
             )
             
             try:
-                # --- IMPROVED PROMPT: More structured and strict instructions ---
+                # --- FIXED PROMPT: Enhanced with ELIGIBILITY CRITERIA priority ---
                 analysis_prompt_template = """
-                CRITICAL INSTRUCTIONS: You MUST return ONLY a valid JSON object. No additional text, no explanations, no markdown.
+CRITICAL INSTRUCTIONS: You MUST return ONLY a valid JSON object. No additional text, no explanations, no markdown.
 
-                You are an expert Senior Technical Recruiter. Analyze the RESUME against the JOB DESCRIPTION with brutal honesty.
+You are an expert Senior Technical Recruiter. Analyze the RESUME against the JOB DESCRIPTION with brutal honesty.
 
-                **STRICT RULES:**
-                1. **EVIDENCE-BASED ONLY**: Only count skills EXPLICITLY mentioned in the resume
-                2. **ELIGIBILITY FIRST**: Check graduation year and qualifications FIRST
-                3. **NO INFERENCES**: If not written, it doesn't exist
+**STRICT PRIORITY ORDER:**
+1. **ELIGIBILITY CHECK FIRST**: Check graduation year and batch eligibility BEFORE anything else
+2. **EXPERIENCE LEVEL**: Determine based on graduation year and work experience
+3. **TECHNICAL SKILLS**: Only count skills EXPLICITLY mentioned in resume
+4. **NO INFERENCES**: If not written, it doesn't exist
 
-                **JOB DESCRIPTION:**
-                {jd}
+**BATCH ELIGIBILITY RULES:**
+- If JD requires "2023 and earlier pass-outs" and candidate passed in 2015 → NOT ELIGIBLE
+- If JD requires "2023 and earlier pass-outs" and candidate passed in 2024 → NOT ELIGIBLE  
+- Only 2023, 2022, 2021, etc. are eligible for "2023 and earlier" requirement
 
-                **RESUME:**
-                {resume}
+**EXPERIENCE LEVEL CALCULATION:**
+- Current Year: 2024
+- "Fresher": Graduated in 2023-2024 (0-1 years experience)
+- "Junior": Graduated in 2021-2022 (1-3 years experience)  
+- "Mid-Level": Graduated in 2018-2020 (3-6 years experience)
+- "Senior": Graduated in 2017 or earlier (6+ years experience)
 
-                **ANALYSIS OUTPUT - RETURN ONLY THIS JSON:**
+**JOB DESCRIPTION:**
+{jd}
 
-                {{
-                    "relevance_score": 85,
-                    "skills_match": 80,
-                    "years_experience": "Fresher",
-                    "education_level": "High",
-                    "matched_skills": ["Python", "SQL"],
-                    "missing_skills": ["Spark", "Tableau"],
-                    "recommendation_summary": "Candidate meets basic qualifications but lacks key technical skills. Consider for junior roles with training.",
-                    "uses_action_verbs": true,
-                    "has_quantifiable_results": true,
-                    "recommendation_score": 65
-                }}
+**RESUME:**
+{resume}
 
-                **SCORING GUIDELINES:**
-                - 90-100%: Perfect match, all key skills present
-                - 70-89%: Strong match, minor gaps
-                - 50-69%: Average match, needs training
-                - 30-49%: Weak match, major gaps
-                - 0-29%: Poor match, critical gaps
+**ANALYSIS OUTPUT - RETURN ONLY THIS JSON:**
+{{
+    "relevance_score": 85,
+    "skills_match": 80,
+    "years_experience": "Fresher",
+    "education_level": "High",
+    "matched_skills": ["Python", "SQL"],
+    "missing_skills": ["Spark", "Tableau"],
+    "recommendation_summary": "Candidate meets basic qualifications but lacks key technical skills. Consider for junior roles with training.",
+    "uses_action_verbs": true,
+    "has_quantifiable_results": true,
+    "recommendation_score": 65
+}}
 
-                **EXPERIENCE LEVELS:**
-                - "Fresher": 0-1 years
-                - "Junior": 1-3 years  
-                - "Mid-Level": 3-6 years
-                - "Senior": 6+ years
+**SCORING GUIDELINES FOR INELIGIBLE CANDIDATES:**
+- If NOT ELIGIBLE due to batch criteria → recommendation_score MUST be 0-25%
+- If NOT ELIGIBLE due to experience mismatch → recommendation_score MUST be 0-30%
+- If ELIGIBLE but missing key skills → recommendation_score 30-60%
+- If GOOD match → recommendation_score 60-85%  
+- If EXCELLENT match → recommendation_score 85-100%
 
-                **EDUCATION LEVELS:**
-                - "High": B.Tech/BE/Masters from recognized institute
-                - "Medium": Bachelor's degree
-                - "Low": Diploma/No degree
+**EDUCATION LEVELS:**
+- "High": B.Tech/BE/Masters from recognized institute
+- "Medium": Bachelor's degree
+- "Low": Diploma/No degree
 
-                RETURN ONLY THE JSON OBJECT:
-                """
+RETURN ONLY THE JSON OBJECT:
+"""
                 analysis_prompt = PromptTemplate.from_template(analysis_prompt_template)
                 analysis_chain = analysis_prompt | llm
 
