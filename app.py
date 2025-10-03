@@ -54,14 +54,54 @@ def get_repetition_status(text):
     return "✅ Low Repetition"
 
 def clean_json_response(response_text):
-    """Extracts and cleans a JSON object from a string."""
-    json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
-    if not json_match:
+    """Extracts and cleans a JSON object from a string with better error handling."""
+    try:
+        # Multiple patterns to catch JSON in different formats
+        json_patterns = [
+            r'\{[^{}]*\{[^{}]*\}[^{}]*\}',  # Nested objects
+            r'\{.*\}',  # Simple objects
+        ]
+        
+        for pattern in json_patterns:
+            json_match = re.search(pattern, response_text, re.DOTALL)
+            if json_match:
+                json_text = json_match.group(0)
+                
+                # Clean the JSON text
+                json_text = re.sub(r'[\x00-\x1f\x7f-\x9f]', '', json_text)
+                json_text = re.sub(r',\s*([}\]])', r'\1', json_text)
+                json_text = re.sub(r'(\w+):', r'"\1":', json_text)  # Ensure keys are quoted
+                
+                return json_text
         return None
-    json_text = json_match.group(0)
-    json_text = re.sub(r'[\x00-\x1f\x7f-\x9f]', '', json_text)
-    json_text = re.sub(r',\s*([}\]])', r'\1', json_text)
-    return json_text
+    except Exception as e:
+        st.error(f"JSON cleaning error: {str(e)}")
+        return None
+
+def validate_analysis_result(result):
+    """Ensure the analysis result has all required fields with proper defaults."""
+    required_fields = {
+        'relevance_score': 0,
+        'skills_match': 0,
+        'years_experience': 'Not Specified',
+        'education_level': 'Not Specified',
+        'matched_skills': [],
+        'missing_skills': [],
+        'recommendation_summary': 'Analysis incomplete.',
+        'uses_action_verbs': False,
+        'has_quantifiable_results': False,
+        'recommendation_score': 0
+    }
+    
+    validated_result = required_fields.copy()
+    validated_result.update(result)
+    
+    # Ensure scores are within bounds
+    validated_result['relevance_score'] = max(0, min(100, validated_result['relevance_score']))
+    validated_result['skills_match'] = max(0, min(100, validated_result['skills_match']))
+    validated_result['recommendation_score'] = max(0, min(100, validated_result['recommendation_score']))
+    
+    return validated_result
 
 # --- UI SETUP ---
 st.set_page_config(layout="wide", page_title="AI Resume Checker", page_icon="🚀")
@@ -104,26 +144,16 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
             )
             
             try:
-                # --- SMARTER PROMPT: More direct, evidence-based instructions ---
+                # --- IMPROVED PROMPT: More structured and strict instructions ---
                 analysis_prompt_template = """
-                You are an expert Senior Technical Recruiter. Your task is to be ruthlessly objective and analyze a RESUME against a JOB DESCRIPTION. Your entire analysis MUST be based strictly on the evidence present in the text.
+                CRITICAL INSTRUCTIONS: You MUST return ONLY a valid JSON object. No additional text, no explanations, no markdown.
 
-                **ANALYSIS RULES:**
+                You are an expert Senior Technical Recruiter. Analyze the RESUME against the JOB DESCRIPTION with brutal honesty.
 
-                1.  **Identify Roles & Core Skills:** Analyze the JOB DESCRIPTION to find the distinct roles (e.g., 'Data Scientist', 'Data Engineer'). For each role, identify the **Core Mandatory Skills**. These are non-negotiable for the role.
-
-                2.  **Evidence-Based Matching (CRITICAL RULE):**
-                    * Scrutinize the RESUME. A skill is 'matched' ONLY IF IT IS **EXPLICITLY WRITTEN** in the resume.
-                    * **DO NOT INFER OR HALLUCINATE SKILLS.** If 'PyTorch' is not written, the candidate does not know PyTorch. No exceptions.
-
-                3.  **Scoring Logic:**
-                    * First, determine the candidate's best-fit role from the JD.
-                    * `skills_match`: Calculate as (% of **Core Mandatory Skills** matched for the best-fit role).
-                    * `recommendation_score`: This MUST reflect the `skills_match` and overall quality.
-                        * **Excellent (>80% core skills):** Score > 85.
-                        * **Average (~40-60% core skills):** Score 40-60.
-                        * **Poor (<30% core skills):** Score < 30.
-                    * `missing_skills`: List ONLY the **Core Mandatory Skills** the candidate is missing for their best-fit role.
+                **STRICT RULES:**
+                1. **EVIDENCE-BASED ONLY**: Only count skills EXPLICITLY mentioned in the resume
+                2. **ELIGIBILITY FIRST**: Check graduation year and qualifications FIRST
+                3. **NO INFERENCES**: If not written, it doesn't exist
 
                 **JOB DESCRIPTION:**
                 {jd}
@@ -131,19 +161,40 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
                 **RESUME:**
                 {resume}
 
-                **RETURN ONLY a raw JSON object. Be brutally honest and precise.**
+                **ANALYSIS OUTPUT - RETURN ONLY THIS JSON:**
+
                 {{
-                    "relevance_score": 92,
-                    "skills_match": 90,
+                    "relevance_score": 85,
+                    "skills_match": 80,
                     "years_experience": "Fresher",
                     "education_level": "High",
-                    "matched_skills": ["Python", "SQL", "Spark", "Generative AI", "Computer Vision", "NLP", "Tableau", "Power BI", "Pandas"],
-                    "missing_skills": ["Hadoop"],
-                    "recommendation_summary": "This is an exceptional candidate for the Data Science Intern role. They possess over 90% of the core requirements and demonstrate strong, relevant project experience. Highly recommended for an interview.",
+                    "matched_skills": ["Python", "SQL"],
+                    "missing_skills": ["Spark", "Tableau"],
+                    "recommendation_summary": "Candidate meets basic qualifications but lacks key technical skills. Consider for junior roles with training.",
                     "uses_action_verbs": true,
                     "has_quantifiable_results": true,
-                    "recommendation_score": 95
+                    "recommendation_score": 65
                 }}
+
+                **SCORING GUIDELINES:**
+                - 90-100%: Perfect match, all key skills present
+                - 70-89%: Strong match, minor gaps
+                - 50-69%: Average match, needs training
+                - 30-49%: Weak match, major gaps
+                - 0-29%: Poor match, critical gaps
+
+                **EXPERIENCE LEVELS:**
+                - "Fresher": 0-1 years
+                - "Junior": 1-3 years  
+                - "Mid-Level": 3-6 years
+                - "Senior": 6+ years
+
+                **EDUCATION LEVELS:**
+                - "High": B.Tech/BE/Masters from recognized institute
+                - "Medium": Bachelor's degree
+                - "Low": Diploma/No degree
+
+                RETURN ONLY THE JSON OBJECT:
                 """
                 analysis_prompt = PromptTemplate.from_template(analysis_prompt_template)
                 analysis_chain = analysis_prompt | llm
@@ -151,16 +202,19 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
                 response = analysis_chain.invoke({"resume": resume_text, "jd": job_description})
                 response_text = response.content
 
+                # Debug: Show raw response
+                with st.expander("🔧 Debug: Raw AI Response"):
+                    st.code(response_text)
+
                 cleaned_json = clean_json_response(response_text)
                 if not cleaned_json:
                     st.error("❌ AI response format error. Could not extract JSON data.")
-                    st.text_area("Raw AI Response for debugging:", response_text)
                     st.stop()
 
                 analysis_result = json.loads(cleaned_json)
+                analysis_result = validate_analysis_result(analysis_result)
 
                 # --- DISPLAY RESULTS ---
-                # This section remains the same as it correctly displays the data from the AI
                 word_count_status = get_word_count_status(resume_text)
                 repetition_status = get_repetition_status(resume_text)
 
@@ -185,11 +239,11 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
                 with res_col1:
                     st.metric("AI Relevance Score", f"{analysis_result.get('relevance_score', 0)}%")
                 with res_col2:
-                    st.metric("Skills Match", f"{analysis_result.get('skills_match', '0')}%")
+                    st.metric("Skills Match", f"{analysis_result.get('skills_match', 0)}%")
                 with res_col3:
-                    st.metric("Years' Experience", analysis_result.get('years_experience', 'N/A'))
+                    st.metric("Years' Experience", analysis_result.get('years_experience', 'Not Specified'))
                 with res_col4:
-                    st.metric("Education Level", analysis_result.get('education_level', 'N/A'))
+                    st.metric("Education Level", analysis_result.get('education_level', 'Not Specified'))
 
                 st.subheader("🔧 Skills Analysis")
                 skill_col1, skill_col2 = st.columns(2)
@@ -246,8 +300,36 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
                     st.markdown(f'<div class="metric-card"><p class="label">Quantifiable Results</p><p class="value">{quant_results}</p></div>', unsafe_allow_html=True)
 
                 st.divider()
-                # Your report generation logic can remain here
-                report_text = "..."
+                
+                # Generate comprehensive report
+                report_text = f"""
+RESUME ANALYSIS REPORT
+=====================
+
+FINAL VERDICT: {rec_text} ({recommendation_score}%)
+
+CANDIDATE PROFILE:
+- Experience Level: {analysis_result.get('years_experience', 'Not Specified')}
+- Education Level: {analysis_result.get('education_level', 'Not Specified')}
+- Relevance Score: {analysis_result.get('relevance_score', 0)}%
+- Skills Match: {analysis_result.get('skills_match', 0)}%
+
+SKILLS ANALYSIS:
+✅ Matched Skills: {', '.join(analysis_result.get('matched_skills', []))}
+❌ Missing Skills: {', '.join(analysis_result.get('missing_skills', []))}
+
+PROFESSIONAL ASSESSMENT:
+{analysis_result.get('recommendation_summary', 'No analysis available.')}
+
+RESUME QUALITY:
+- Word Count: {word_count_status}
+- Keyword Repetition: {repetition_status}
+- Action Verbs: {action_verbs}
+- Quantifiable Results: {quant_results}
+
+Generated on: {time.strftime('%Y-%m-%d %H:%M:%S')}
+                """
+                
                 st.download_button(
                     label="📥 Download Comprehensive Report",
                     data=report_text,
@@ -271,5 +353,3 @@ st.markdown("""
     <p>Provides realistic scoring based on actual content matching between resume and job requirements</p>
 </div>
 """, unsafe_allow_html=True)
-
-
