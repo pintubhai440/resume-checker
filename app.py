@@ -105,7 +105,7 @@ def validate_analysis_result(result):
 
 # --- UI SETUP ---
 st.set_page_config(layout="wide", page_title="AI Resume Checker", page_icon="🚀")
-st.title("🚀 Advanced AI Resume Checker")
+st.title("🚀 AI Resume Checker")
 st.write("Get consistent, accurate, and data-driven resume analysis with Gemini. This tool provides precise relevance score, skill gap analysis, and detailed evaluation.")
 
 # --- API KEY & MODEL SETUP ---
@@ -359,3 +359,4 @@ st.markdown("""
     <p>Provides realistic scoring based on actual content matching between resume and job requirements</p>
 </div>
 """, unsafe_allow_html=True)
+
