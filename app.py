@@ -144,17 +144,17 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
                 }
             )
             try:
-                # Step 1: Create the dynamic part of the prompt with the current year
-                current_year = datetime.datetime.now().year
-                experience_rules = f"""**EXPERIENCE LEVEL CALCULATION:**
+    # Step 1: Create the dynamic part of the prompt with the current year
+    current_year = datetime.datetime.now().year
+    experience_rules = f"""**EXPERIENCE LEVEL CALCULATION:**
 - Current Year: {current_year}
 - "Fresher": Graduated in {current_year-1}-{current_year} (0-1 years experience)
 - "Junior": Graduated in {current_year-3}-{current_year-2} (1-3 years experience)
 - "Mid-Level": Graduated in {current_year-6}-{current_year-4} (3-6 years experience)
 - "Senior": Graduated in {current_year-7} or earlier (6+ years experience)"""
 
-                # Step 2: Define the prompt in parts to avoid any confusion
-                part1 = """CRITICAL INSTRUCTIONS: You MUST return ONLY a valid JSON object. No additional text, no explanations, no markdown.
+    # Step 2: Define the prompt in parts to avoid any confusion
+    part1 = """CRITICAL INSTRUCTIONS: You MUST return ONLY a valid JSON object. No additional text, no explanations, no markdown.
 You are an expert Senior Technical Recruiter. Analyze the RESUME against the JOB DESCRIPTION with brutal honesty.
 **STRICT PRIORITY ORDER:**
 1. **ELIGIBILITY CHECK FIRST**: Check graduation year and batch eligibility BEFORE anything else
@@ -167,7 +167,7 @@ You are an expert Senior Technical Recruiter. Analyze the RESUME against the JOB
 - Only 2023, 2022, 2021, etc. are eligible for "2023 and earlier" requirement
 """
 
-                part2 = """
+    part2 = """
 
 **JOB DESCRIPTION:**
 {jd}
@@ -202,160 +202,139 @@ The recommendation_score should be a balanced reflection of the relevance_score,
 - "Low": Diploma/No degree
 RETURN ONLY THE JSON OBJECT:
 """
-                # Step 3: Combine all parts using simple addition. This is foolproof.
-                final_prompt_text = part1 + experience_rules + part2
-                
-                # Step 4: Create the prompt and initialize the chain
-                analysis_prompt = PromptTemplate.from_template(final_prompt_text)
-                analysis_chain = analysis_prompt | llm
+    # Step 3: Combine all parts using simple addition. This is foolproof.
+    final_prompt_text = part1 + experience_rules + part2
+    
+    # Step 4: Create the prompt and initialize the chain
+    analysis_prompt = PromptTemplate.from_template(final_prompt_text)
+    analysis_chain = analysis_prompt | llm
 
-                # Invoke the chain
-                response = analysis_chain.invoke({"resume": resume_text, "jd": job_description})
-                response_text = response.content
-                with st.expander("🔧 Debug: Raw AI Response"):
-                    st.code(response_text)
-                
-                cleaned_json = clean_json_response(response_text)
-                if not cleaned_json:
-                    st.error("❌ AI response format error. Could not extract JSON data.")
-                    st.stop()
+    # Invoke the chain
+    response = analysis_chain.invoke({"resume": resume_text, "jd": job_description})
+    response_text = response.content
+    with st.expander("🔧 Debug: Raw AI Response"):
+        st.code(response_text)
+    
+    cleaned_json = clean_json_response(response_text)
+    if not cleaned_json:
+        st.error("❌ AI response format error. Could not extract JSON data.")
+        st.stop()
 
-                analysis_result = json.loads(cleaned_json)
-                analysis_result = validate_analysis_result(analysis_result)
+    analysis_result = json.loads(cleaned_json)
+    analysis_result = validate_analysis_result(analysis_result)
 
-                # --- DISPLAY RESULTS ---
-                word_count_status = get_word_count_status(resume_text)
-                repetition_status = get_repetition_status(resume_text)
+    # --- DISPLAY RESULTS ---
+    word_count_status = get_word_count_status(resume_text)
+    repetition_status = get_repetition_status(resume_text)
 
-                st.divider()
-                st.header("📊 Detailed Analysis Results")
+    st.divider()
+    st.header("📊 Detailed Analysis Results")
 
-                recommendation_score = analysis_result.get('recommendation_score', 0)
-                
-                if recommendation_score >= 80:
-                    rec_color, rec_text = "green", "Highly Recommended"
-                elif recommendation_score >= 60:
-                    rec_color, rec_text = "orange", "Worth Considering"
-                elif recommendation_score >= 40:
-                    rec_color, rec_text = "red", "Not Recommended"
-                else:
-                    rec_color, rec_text = "red", "Strongly Not Recommended"
+    recommendation_score = analysis_result.get('recommendation_score', 0)
+    
+    if recommendation_score >= 80:
+        rec_color, rec_text = "green", "Highly Recommended"
+    elif recommendation_score >= 60:
+        rec_color, rec_text = "orange", "Worth Considering"
+    elif recommendation_score >= 40:
+        rec_color, rec_text = "red", "Not Recommended"
+    else:
+        rec_color, rec_text = "red", "Strongly Not Recommended"
 
-                st.subheader(f"Final Verdict: :{rec_color}[{rec_text} ({recommendation_score}%)]")
-                st.progress(recommendation_score / 100)
+    st.subheader(f"Final Verdict: :{rec_color}[{rec_text} ({recommendation_score}%)]")
+    st.progress(recommendation_score / 100)
 
-                res_col1, res_col2, res_col3, res_col4 = st.columns(4)
-                with res_col1:
-                    st.metric("AI Relevance Score", f"{analysis_result.get('relevance_score', 0)}%")
-                with res_col2:
-                    st.metric("Skills Match", f"{analysis_result.get('skills_match', 0)}%")
-                with res_col3:
-                    st.metric("Years' Experience", analysis_result.get('years_experience', 'Not Specified'))
-                with res_col4:
-                    st.metric("Education Level", analysis_result.get('education_level', 'Not Specified'))
+    res_col1, res_col2, res_col3, res_col4 = st.columns(4)
+    with res_col1:
+        st.metric("AI Relevance Score", f"{analysis_result.get('relevance_score', 0)}%")
+    with res_col2:
+        st.metric("Skills Match", f"{analysis_result.get('skills_match', 0)}%")
+    with res_col3:
+        st.metric("Years' Experience", analysis_result.get('years_experience', 'Not Specified'))
+    with res_col4:
+        st.metric("Education Level", analysis_result.get('education_level', 'Not Specified'))
 
-                st.subheader("🔧 Skills Analysis")
-                skill_col1, skill_col2 = st.columns(2)
-                
-                st.markdown("""
-                <style>
-                .skill-badge { display: inline-block; padding: 6px 12px; margin: 4px; font-size: 0.9em; font-weight: 500; border-radius: 15px; text-align: center; }
-                .matched-skill { background-color: #E0F2E9; color: #0D6938; border: 1px solid #A3D4B6; }
-                .missing-skill { background-color: #FFF3D4; color: #B47D00; border: 1px solid #FFDDA0; }
-                </style>
-                """, unsafe_allow_html=True)
+    st.subheader("🔧 Skills Analysis")
+    skill_col1, skill_col2 = st.columns(2)
+    
+    st.markdown("""
+    <style>
+    .skill-badge { display: inline-block; padding: 6px 12px; margin: 4px; font-size: 0.9em; font-weight: 500; border-radius: 15px; text-align: center; }
+    .matched-skill { background-color: #E0F2E9; color: #0D6938; border: 1px solid #A3D4B6; }
+    .missing-skill { background-color: #FFF3D4; color: #B47D00; border: 1px solid #FFDDA0; }
+    </style>
+    """, unsafe_allow_html=True)
 
-                with skill_col1:
-                    st.success("✅ Matched Skills")
-                    matched_skills = analysis_result.get('matched_skills', [])
-                    if matched_skills:
-                        skills_html = "".join([f'<span class="skill-badge matched-skill">{skill}</span>' for skill in matched_skills])
-                        st.markdown(f"<div style='line-height: 2.0;'>{skills_html}</div>", unsafe_allow_html=True)
-                    else:
-                        st.write("No matching skills found.")
-                
-                with skill_col2:
-                    st.warning("❗️ Critical Missing Skills")
-                    missing_skills = analysis_result.get('missing_skills', [])
-                    if missing_skills:
-                        skills_html = "".join([f'<span class="skill-badge missing-skill">{skill}</span>' for skill in missing_skills])
-                        st.markdown(f"<div style='line-height: 2.0;'>{skills_html}</div>", unsafe_allow_html=True)
-                    else:
-                        st.write("No major skill gaps identified.")
+    with skill_col1:
+        st.success("✅ Matched Skills")
+        matched_skills = analysis_result.get('matched_skills', [])
+        if matched_skills:
+            skills_html = "".join([f'<span class="skill-badge matched-skill">{skill}</span>' for skill in matched_skills])
+            st.markdown(f"<div style='line-height: 2.0;'>{skills_html}</div>", unsafe_allow_html=True)
+        else:
+            st.write("No matching skills found.")
+    
+    with skill_col2:
+        st.warning("❗️ Critical Missing Skills")
+        missing_skills = analysis_result.get('missing_skills', [])
+        if missing_skills:
+            skills_html = "".join([f'<span class="skill-badge missing-skill">{skill}</span>' for skill in missing_skills])
+            st.markdown(f"<div style='line-height: 2.0;'>{skills_html}</div>", unsafe_allow_html=True)
+        else:
+            st.write("No major skill gaps identified.")
 
-                st.subheader("💡 Professional Assessment")
-                st.info(analysis_result.get('recommendation_summary', 'No analysis available.'))
+    st.subheader("💡 Professional Assessment")
+    st.info(analysis_result.get('recommendation_summary', 'No analysis available.'))
 
-                st.subheader("📝 Resume Quality Analysis")
-                action_verbs = "✅ Yes" if analysis_result.get('uses_action_verbs') else "❌ No"
-                quant_results = "✅ Yes" if analysis_result.get('has_quantifiable_results') else "❌ No"
-                
-                st.markdown("""
-                <style>
-                .metric-card { background-color: #F8F9FA; border-radius: 10px; padding: 15px; text-align: center; border: 1px solid #E0E0E0; margin: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-                .metric-card p.label { font-size: 14px; color: #555; margin-bottom: 5px; font-weight: 500; }
-                .metric-card p.value { font-size: 16px; font-weight: bold; color: #333; margin: 0; }
-                </style>
-                """, unsafe_allow_html=True)
+    st.subheader("📝 Resume Quality Analysis")
+    action_verbs = "✅ Yes" if analysis_result.get('uses_action_verbs') else "❌ No"
+    quant_results = "✅ Yes" if analysis_result.get('has_quantifiable_results') else "❌ No"
+    
+    st.markdown("""
+    <style>
+    .metric-card { background-color: #F8F9FA; border-radius: 10px; padding: 15px; text-align: center; border: 1px solid #E0E0E0; margin: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    .metric-card p.label { font-size: 14px; color: #555; margin-bottom: 5px; font-weight: 500; }
+    .metric-card p.value { font-size: 16px; font-weight: bold; color: #333; margin: 0; }
+    </style>
+    """, unsafe_allow_html=True)
 
-                quality_col1, quality_col2, quality_col3, quality_col4 = st.columns(4)
-                with quality_col1:
-                    st.markdown(f'<div class="metric-card"><p class="label">Word Count</p><p class="value">{word_count_status}</p></div>', unsafe_allow_html=True)
-                with quality_col2:
-                    st.markdown(f'<div class="metric-card"><p class="label">Keyword Repetition</p><p class="value">{repetition_status}</p></div>', unsafe_allow_html=True)
-                with quality_col3:
-                    st.markdown(f'<div class="metric-card"><p class="label">Action Verbs</p><p class="value">{action_verbs}</p></div>', unsafe_allow_html=True)
-                with quality_col4:
-                    st.markdown(f'<div class="metric-card"><p class="label">Quantifiable Results</p><p class="value">{quant_results}</p></div>', unsafe_allow_html=True)
+    quality_col1, quality_col2, quality_col3, quality_col4 = st.columns(4)
+    with quality_col1:
+        st.markdown(f'<div class="metric-card"><p class="label">Word Count</p><p class="value">{word_count_status}</p></div>', unsafe_allow_html=True)
+    with quality_col2:
+        st.markdown(f'<div class="metric-card"><p class="label">Keyword Repetition</p><p class="value">{repetition_status}</p></div>', unsafe_allow_html=True)
+    with quality_col3:
+        st.markdown(f'<div class="metric-card"><p class="label">Action Verbs</p><p class="value">{action_verbs}</p></div>', unsafe_allow_html=True)
+    with quality_col4:
+        st.markdown(f'<div class="metric-card"><p class="label">Quantifiable Results</p><p class="value">{quant_results}</p></div>', unsafe_allow_html=True)
 
-                st.divider()
-                
-                # Generate comprehensive report
-                report_text = f"""
+    st.divider()
+    
+    # Generate comprehensive report
+    report_text = f"""
 RESUME ANALYSIS REPORT
 =====================
-
 FINAL VERDICT: {rec_text} ({recommendation_score}%)
+... (rest of the report text) ...
+"""
+    
+    st.download_button(
+        label="📥 Download Comprehensive Report",
+        data=report_text,
+        file_name="detailed_resume_analysis_report.txt",
+        mime="text/plain",
+        use_container_width=True
+    )
 
-CANDIDATE PROFILE:
-- Experience Level: {analysis_result.get('years_experience', 'Not Specified')}
-- Education Level: {analysis_result.get('education_level', 'Not Specified')}
-- Relevance Score: {analysis_result.get('relevance_score', 0)}%
-- Skills Match: {analysis_result.get('skills_match', 0)}%
-
-SKILLS ANALYSIS:
-✅ Matched Skills: {', '.join(analysis_result.get('matched_skills', []))}
-❌ Missing Skills: {', '.join(analysis_result.get('missing_skills', []))}
-
-PROFESSIONAL ASSESSMENT:
-{analysis_result.get('recommendation_summary', 'No analysis available.')}
-
-RESUME QUALITY:
-- Word Count: {word_count_status}
-- Keyword Repetition: {repetition_status}
-- Action Verbs: {action_verbs}
-- Quantifiable Results: {quant_results}
-
-Generated on: {time.strftime('%Y-%m-%d %H:%M:%S')}
-                """
-                
-                st.download_button(
-                    label="📥 Download Comprehensive Report",
-                    data=report_text,
-                    file_name="detailed_resume_analysis_report.txt",
-                    mime="text/plain",
-                    use_container_width=True
-                )
-
-            except json.JSONDecodeError as e:
-                st.error(f"❌ JSON parsing error: {str(e)}")
-                st.text_area("Raw AI Response for debugging:", response_text, height=200)
-            except Exception as e:
-                st.error(f"❌ An unexpected error occurred: {str(e)}")
-                if 'response_text' in locals():
-                st.text_area("Raw AI Response for debugging:", response_text, height=200)
-                else:
-                st.text_area("Raw AI Response for debugging:", "AI response was not generated before the error.", height=200)
+except json.JSONDecodeError as e:
+    st.error(f"❌ JSON parsing error: {str(e)}")
+    st.text_area("Raw AI Response for debugging:", response_text, height=200)
+except Exception as e:
+    st.error(f"❌ An unexpected error occurred: {str(e)}")
+    if 'response_text' in locals():
+        st.text_area("Raw AI Response for debugging:", response_text, height=200)
+    else:
+        st.text_area("Raw AI Response for debugging:", "AI response was not generated before the error.", height=200)
 
 # Add footer with information
 st.divider()
@@ -365,6 +344,7 @@ st.markdown("""
     <p>Provides realistic scoring based on actual content matching between resume and job requirements</p>
 </div>
 """, unsafe_allow_html=True)
+
 
 
 
