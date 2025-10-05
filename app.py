@@ -144,43 +144,38 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
                 }
             )
             
+         
+
             try:
                 # --- FIXED PROMPT: Enhanced with ELIGIBILITY CRITERIA priority ---
-                 # Step 1: Create the dynamic part of the prompt separately
-            current_year = datetime.datetime.now().year
-            experience_rules = f"""**EXPERIENCE LEVEL CALCULATION:**
+                
+                # Step 1: Create the dynamic part of the prompt separately
+                current_year = datetime.datetime.now().year
+                experience_rules = f"""**EXPERIENCE LEVEL CALCULATION:**
 - Current Year: {current_year}
 - "Fresher": Graduated in {current_year-1}-{current_year} (0-1 years experience)
 - "Junior": Graduated in {current_year-3}-{current_year-2} (1-3 years experience)
 - "Mid-Level": Graduated in {current_year-6}-{current_year-4} (3-6 years experience)
 - "Senior": Graduated in {current_year-7} or earlier (6+ years experience)"""
 
-            # Step 2: Define the main template as a REGULAR string (notice the 'f' is removed)
-            # Use single braces for LangChain variables {jd} and {resume}
-            analysis_prompt_template_text = """
+                # Step 2: Define the main template as a REGULAR string
+                analysis_prompt_template_text = """
 CRITICAL INSTRUCTIONS: You MUST return ONLY a valid JSON object. No additional text, no explanations, no markdown.
-
 You are an expert Senior Technical Recruiter. Analyze the RESUME against the JOB DESCRIPTION with brutal honesty.
-
 **STRICT PRIORITY ORDER:**
 1. **ELIGIBILITY CHECK FIRST**: Check graduation year and batch eligibility BEFORE anything else
 2. **EXPERIENCE LEVEL**: Determine based on graduation year and work experience
 3. **TECHNICAL SKILLS**: Only count skills EXPLICITLY mentioned in resume
 4. **NO INFERENCES**: If not written, it doesn't exist
-
 **BATCH ELIGIBILITY RULES:**
 - If JD requires "2023 and earlier pass-outs" and candidate passed in 2015 -> NOT ELIGIBLE
 - If JD requires "2023 and earlier pass-outs" and candidate passed in 2024 -> NOT ELIGIBLE
 - Only 2023, 2022, 2021, etc. are eligible for "2023 and earlier" requirement
-
 {experience_rules}
-
 **JOB DESCRIPTION:**
 {jd}
-
 **RESUME:**
 {resume}
-
 **ANALYSIS OUTPUT - RETURN ONLY THIS JSON:**
 {{
     "relevance_score": 85,
@@ -194,43 +189,37 @@ You are an expert Senior Technical Recruiter. Analyze the RESUME against the JOB
     "has_quantifiable_results": true,
     "recommendation_score": 65
 }}
-
 **SCORING LOGIC:**
 The recommendation_score should be a balanced reflection of the relevance_score, skills_match, and the severity of missing skills. For intern roles, missing one or two key technologies should lower the score but not necessarily result in a 'Not Recommended' verdict if the foundational skills are strong.
-
 **SCORING GUIDELINES FOR INELIGIBLE CANDIDATES:**
 - If NOT ELIGIBLE due to batch criteria -> recommendation_score MUST be 0-25%
 - If NOT ELIGIBLE due to experience mismatch -> recommendation_score MUST be 0-30%
 - If ELIGIBLE but missing key skills -> recommendation_score 30-60%
 - If GOOD match -> recommendation_score 60-85%
 - If EXCELLENT match -> recommendation_score 85-100%
-
 **EDUCATION LEVELS:**
 - "High": B.Tech/BE/Masters from recognized institute
 - "Medium": Bachelor's degree
 - "Low": Diploma/No degree
-
 RETURN ONLY THE JSON OBJECT:
 """
-            # Step 3: Combine the parts to create the final prompt text
-            final_prompt_text = analysis_prompt_template_text.format(
-                experience_rules=experience_rules,
-                jd="{jd}",  # Pass these as literals for the next step
-                resume="{resume}" # Pass these as literals for the next step
-            )
+                # Step 3: Combine the parts to create the final prompt text
+                final_prompt_text = analysis_prompt_template_text.format(
+                    experience_rules=experience_rules,
+                    jd="{jd}",
+                    resume="{resume}"
+                )
 
-            analysis_prompt = PromptTemplate.from_template(final_prompt_text)
-            analysis_chain = analysis_prompt | llm
+                analysis_prompt = PromptTemplate.from_template(final_prompt_text)
+                analysis_chain = analysis_prompt | llm
 
-            response = analysis_chain.invoke({"resume": resume_text, "jd": job_description})
-            response_text = response.content
-
-            # ... (The rest of your code remains the same) ...
+                response = analysis_chain.invoke({"resume": resume_text, "jd": job_description})
+                response_text = response.content
 
                 # Debug: Show raw response
                 with st.expander("🔧 Debug: Raw AI Response"):
                     st.code(response_text)
-
+                
                 cleaned_json = clean_json_response(response_text)
                 if not cleaned_json:
                     st.error("❌ AI response format error. Could not extract JSON data.")
@@ -368,7 +357,11 @@ Generated on: {time.strftime('%Y-%m-%d %H:%M:%S')}
                 st.text_area("Raw AI Response for debugging:", response_text, height=200)
             except Exception as e:
                 st.error(f"❌ An unexpected error occurred: {str(e)}")
-                st.text_area("Raw AI Response for debugging:", response_text, height=200)
+                # Make sure response_text is defined before being used in an exception
+                if 'response_text' in locals():
+                    st.text_area("Raw AI Response for debugging:", response_text, height=200)
+                else:
+                    st.text_area("Raw AI Response for debugging:", "AI response was not generated before the error.", height=200)
 
 # Add footer with information
 st.divider()
@@ -378,6 +371,7 @@ st.markdown("""
     <p>Provides realistic scoring based on actual content matching between resume and job requirements</p>
 </div>
 """, unsafe_allow_html=True)
+
 
 
 
