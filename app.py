@@ -146,8 +146,18 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
             
             try:
                 # --- FIXED PROMPT: Enhanced with ELIGIBILITY CRITERIA priority ---
-                current_year = datetime.datetime.now().year
-                analysis_prompt_template = f"""
+                 # Step 1: Create the dynamic part of the prompt separately
+            current_year = datetime.datetime.now().year
+            experience_rules = f"""**EXPERIENCE LEVEL CALCULATION:**
+- Current Year: {current_year}
+- "Fresher": Graduated in {current_year-1}-{current_year} (0-1 years experience)
+- "Junior": Graduated in {current_year-3}-{current_year-2} (1-3 years experience)
+- "Mid-Level": Graduated in {current_year-6}-{current_year-4} (3-6 years experience)
+- "Senior": Graduated in {current_year-7} or earlier (6+ years experience)"""
+
+            # Step 2: Define the main template as a REGULAR string (notice the 'f' is removed)
+            # Use single braces for LangChain variables {jd} and {resume}
+            analysis_prompt_template_text = """
 CRITICAL INSTRUCTIONS: You MUST return ONLY a valid JSON object. No additional text, no explanations, no markdown.
 
 You are an expert Senior Technical Recruiter. Analyze the RESUME against the JOB DESCRIPTION with brutal honesty.
@@ -163,18 +173,13 @@ You are an expert Senior Technical Recruiter. Analyze the RESUME against the JOB
 - If JD requires "2023 and earlier pass-outs" and candidate passed in 2024 -> NOT ELIGIBLE
 - Only 2023, 2022, 2021, etc. are eligible for "2023 and earlier" requirement
 
-**EXPERIENCE LEVEL CALCULATION:**
-- Current Year: {current_year}
-- "Fresher": Graduated in {current_year-1}-{current_year} (0-1 years experience)
-- "Junior": Graduated in {current_year-3}-{current_year-2} (1-3 years experience)
-- "Mid-Level": Graduated in {current_year-6}-{current_year-4} (3-6 years experience)
-- "Senior": Graduated in {current_year-7} or earlier (6+ years experience)
+{experience_rules}
 
 **JOB DESCRIPTION:**
-{{jd}}
+{jd}
 
 **RESUME:**
-{{resume}}
+{resume}
 
 **ANALYSIS OUTPUT - RETURN ONLY THIS JSON:**
 {{
@@ -207,11 +212,20 @@ The recommendation_score should be a balanced reflection of the relevance_score,
 
 RETURN ONLY THE JSON OBJECT:
 """
-                analysis_prompt = PromptTemplate.from_template(analysis_prompt_template)
-                analysis_chain = analysis_prompt | llm
+            # Step 3: Combine the parts to create the final prompt text
+            final_prompt_text = analysis_prompt_template_text.format(
+                experience_rules=experience_rules,
+                jd="{jd}",  # Pass these as literals for the next step
+                resume="{resume}" # Pass these as literals for the next step
+            )
 
-                response = analysis_chain.invoke({"resume": resume_text, "jd": job_description})
-                response_text = response.content
+            analysis_prompt = PromptTemplate.from_template(final_prompt_text)
+            analysis_chain = analysis_prompt | llm
+
+            response = analysis_chain.invoke({"resume": resume_text, "jd": job_description})
+            response_text = response.content
+
+            # ... (The rest of your code remains the same) ...
 
                 # Debug: Show raw response
                 with st.expander("🔧 Debug: Raw AI Response"):
@@ -364,6 +378,7 @@ st.markdown("""
     <p>Provides realistic scoring based on actual content matching between resume and job requirements</p>
 </div>
 """, unsafe_allow_html=True)
+
 
 
 
