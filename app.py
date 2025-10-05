@@ -144,7 +144,7 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
                 }
             )
             try:
-    # Step 1: Create the dynamic part of the prompt with the current year
+                # Step 1: Create the dynamic part of the prompt with the current year
     current_year = datetime.datetime.now().year
     experience_rules = f"""**EXPERIENCE LEVEL CALCULATION:**
 - Current Year: {current_year}
@@ -344,6 +344,7 @@ st.markdown("""
     <p>Provides realistic scoring based on actual content matching between resume and job requirements</p>
 </div>
 """, unsafe_allow_html=True)
+
 
 
 
