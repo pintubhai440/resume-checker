@@ -7,7 +7,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI, HarmBlockThreshold, H
 from langchain.prompts import PromptTemplate
 from collections import Counter
 import time
- import datetime
+import datetime
 
 # --- Helper Functions for Resume Quality Analysis ---
 
@@ -364,6 +364,7 @@ st.markdown("""
     <p>Provides realistic scoring based on actual content matching between resume and job requirements</p>
 </div>
 """, unsafe_allow_html=True)
+
 
 
 
