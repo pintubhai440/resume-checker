@@ -154,10 +154,8 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
 - "Senior": Graduated in {current_year-7} or earlier (6+ years experience)"""
 
                 # Step 2: Define the main template as a REGULAR string.
-                # IMPORTANT: Use DOUBLE braces {{jd}} and {{resume}} to protect them from .format()
-                # The JSON example should have SINGLE braces.
-                analysis_prompt_template_text = """
-CRITICAL INSTRUCTIONS: You MUST return ONLY a valid JSON object. No additional text, no explanations, no markdown.
+                # Step 2: प्रॉम्प्ट के हिस्सों को अलग-अलग बनाएं (Foolproof Method)
+                part1 = """CRITICAL INSTRUCTIONS: You MUST return ONLY a valid JSON object. No additional text, no explanations, no markdown.
 You are an expert Senior Technical Recruiter. Analyze the RESUME against the JOB DESCRIPTION with brutal honesty.
 **STRICT PRIORITY ORDER:**
 1. **ELIGIBILITY CHECK FIRST**: Check graduation year and batch eligibility BEFORE anything else
@@ -169,16 +167,19 @@ You are an expert Senior Technical Recruiter. Analyze the RESUME against the JOB
 - If JD requires "2023 and earlier pass-outs" and candidate passed in 2024 -> NOT ELIGIBLE
 - Only 2023, 2022, 2021, etc. are eligible for "2023 and earlier" requirement
 
+"""
+
 {experience_rules}
+part2 = """
 
 **JOB DESCRIPTION:**
-{{jd}}
+{jd}
 
 **RESUME:**
-{{resume}}
+{resume}
 
 **ANALYSIS OUTPUT - RETURN ONLY THIS JSON:**
-{{
+{
     "relevance_score": 85,
     "skills_match": 80,
     "years_experience": "Fresher",
@@ -189,7 +190,7 @@ You are an expert Senior Technical Recruiter. Analyze the RESUME against the JOB
     "uses_action_verbs": true,
     "has_quantifiable_results": true,
     "recommendation_score": 65
-}}
+}
 **SCORING LOGIC:**
 The recommendation_score should be a balanced reflection of the relevance_score, skills_match, and the severity of missing skills. For intern roles, missing one or two key technologies should lower the score but not necessarily result in a 'Not Recommended' verdict if the foundational skills are strong.
 **SCORING GUIDELINES FOR INELIGIBLE CANDIDATES:**
@@ -204,13 +205,12 @@ The recommendation_score should be a balanced reflection of the relevance_score,
 - "Low": Diploma/No degree
 RETURN ONLY THE JSON OBJECT:
 """
-                # Step 3: Use .format() ONLY to insert the dynamic experience_rules
-                final_prompt_text = analysis_prompt_template_text.format(experience_rules=experience_rules)
+               # Step 3: सभी हिस्सों को एक साथ जोड़ दें
+                final_prompt_text = part1 + experience_rules + part2
 
-                # Now, final_prompt_text contains {jd} and {resume} which PromptTemplate needs
+               # Step 4: प्रॉम्प्ट बनाएं और चेन को इनिशियलाइज़ करें
                 analysis_prompt = PromptTemplate.from_template(final_prompt_text)
                 analysis_chain = analysis_prompt | llm
-
                 response = analysis_chain.invoke({"resume": resume_text, "jd": job_description})
                 response_text = response.content
                 # Debug: Show raw response
@@ -368,6 +368,7 @@ st.markdown("""
     <p>Provides realistic scoring based on actual content matching between resume and job requirements</p>
 </div>
 """, unsafe_allow_html=True)
+
 
 
 
