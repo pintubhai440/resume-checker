@@ -347,15 +347,15 @@ Generated on: {time.strftime('%Y-%m-%d %H:%M:%S')}
                     use_container_width=True
                 )
 
-           except json.JSONDecodeError as e:
-                st.error(f"❌ JSON parsing error: {str(e)}")
-                st.text_area("Raw AI Response for debugging:", response_text, height=200)
-            except Exception as e:
-                st.error(f"❌ An unexpected error occurred: {str(e)}")
-                if 'response_text' in locals():
-                    st.text_area("Raw AI Response for debugging:", response_text, height=200)
-                else:
-                    st.text_area("Raw AI Response for debugging:", "AI response was not generated before the error.", height=200)
+                except json.JSONDecodeError as e:
+                     st.error(f"❌ JSON parsing error: {str(e)}")
+                     st.text_area("Raw AI Response for debugging:", response_text, height=200)
+                except Exception as e:
+                     st.error(f"❌ An unexpected error occurred: {str(e)}")
+                     if 'response_text' in locals():
+                        st.text_area("Raw AI Response for debugging:", response_text, height=200)
+                    else:
+                        st.text_area("Raw AI Response for debugging:", "AI response was not generated before the error.", height=200)
 
 # Add footer with information
 st.divider()
@@ -365,6 +365,7 @@ st.markdown("""
     <p>Provides realistic scoring based on actual content matching between resume and job requirements</p>
 </div>
 """, unsafe_allow_html=True)
+
 
 
 
