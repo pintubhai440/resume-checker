@@ -145,7 +145,10 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
             
             try:
                 # --- FIXED PROMPT: Enhanced with ELIGIBILITY CRITERIA priority ---
-                analysis_prompt_template = """
+                # Dynamic year calculation added here
+                import datetime
+                current_year = datetime.datetime.now().year
+                analysis_prompt_template =f"""
 CRITICAL INSTRUCTIONS: You MUST return ONLY a valid JSON object. No additional text, no explanations, no markdown.
 
 You are an expert Senior Technical Recruiter. Analyze the RESUME against the JOB DESCRIPTION with brutal honesty.
@@ -162,11 +165,13 @@ You are an expert Senior Technical Recruiter. Analyze the RESUME against the JOB
 - Only 2023, 2022, 2021, etc. are eligible for "2023 and earlier" requirement
 
 **EXPERIENCE LEVEL CALCULATION:**
-- Current Year: 2024
-- "Fresher": Graduated in 2023-2024 (0-1 years experience)
-- "Junior": Graduated in 2021-2022 (1-3 years experience)  
-- "Mid-Level": Graduated in 2018-2020 (3-6 years experience)
-- "Senior": Graduated in 2017 or earlier (6+ years experience)
+- Current Year: {current_year}
+- "Fresher": Graduated in {current_year-1}-{current_year} (0-1 years experience)
+- "Junior": Graduated in {current_year-3}-{current_year-2} (1-3 years experience)  
+- "Mid-Level": Graduated in {current_year-6}-{current_year-4} (3-6 years experience)
+- "Senior": Graduated in {current_year-7} or earlier (6+ years experience)
+...
+"""
 
 **JOB DESCRIPTION:**
 {jd}
@@ -362,5 +367,6 @@ st.markdown("""
     <p>Provides realistic scoring based on actual content matching between resume and job requirements</p>
 </div>
 """, unsafe_allow_html=True)
+
 
 
