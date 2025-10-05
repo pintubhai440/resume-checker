@@ -7,6 +7,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI, HarmBlockThreshold, H
 from langchain.prompts import PromptTemplate
 from collections import Counter
 import time
+ import datetime
 
 # --- Helper Functions for Resume Quality Analysis ---
 
@@ -145,7 +146,6 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
             
             try:
                 # --- FIXED PROMPT: Enhanced with ELIGIBILITY CRITERIA priority ---
-      import datetime
                 current_year = datetime.datetime.now().year
                 analysis_prompt_template = f"""
 CRITICAL INSTRUCTIONS: You MUST return ONLY a valid JSON object. No additional text, no explanations, no markdown.
@@ -364,6 +364,7 @@ st.markdown("""
     <p>Provides realistic scoring based on actual content matching between resume and job requirements</p>
 </div>
 """, unsafe_allow_html=True)
+
 
 
 
