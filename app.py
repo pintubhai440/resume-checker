@@ -176,7 +176,7 @@ You are an expert Senior Technical Recruiter. Analyze the RESUME against the JOB
 {resume}
 
 **ANALYSIS OUTPUT - RETURN ONLY THIS JSON:**
-{
+{{
     "relevance_score": 85,
     "skills_match": 80,
     "years_experience": "Fresher",
@@ -187,7 +187,7 @@ You are an expert Senior Technical Recruiter. Analyze the RESUME against the JOB
     "uses_action_verbs": true,
     "has_quantifiable_results": true,
     "recommendation_score": 65
-}
+}}
 **SCORING LOGIC:**
 The recommendation_score should be a balanced reflection of the relevance_score, skills_match, and the severity of missing skills. For intern roles, missing one or two key technologies should lower the score but not necessarily result in a 'Not Recommended' verdict if the foundational skills are strong.
 **SCORING GUIDELINES FOR INELIGIBLE CANDIDATES:**
