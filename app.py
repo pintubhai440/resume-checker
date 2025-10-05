@@ -153,8 +153,7 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
 - "Mid-Level": Graduated in {current_year-6}-{current_year-4} (3-6 years experience)
 - "Senior": Graduated in {current_year-7} or earlier (6+ years experience)"""
 
-                # Step 2: Define the main template as a REGULAR string.
-                # Step 2: प्रॉम्प्ट के हिस्सों को अलग-अलग बनाएं (Foolproof Method)
+                # Step 2: Define the prompt in parts
                 part1 = """CRITICAL INSTRUCTIONS: You MUST return ONLY a valid JSON object. No additional text, no explanations, no markdown.
 You are an expert Senior Technical Recruiter. Analyze the RESUME against the JOB DESCRIPTION with brutal honesty.
 **STRICT PRIORITY ORDER:**
@@ -166,11 +165,9 @@ You are an expert Senior Technical Recruiter. Analyze the RESUME against the JOB
 - If JD requires "2023 and earlier pass-outs" and candidate passed in 2015 -> NOT ELIGIBLE
 - If JD requires "2023 and earlier pass-outs" and candidate passed in 2024 -> NOT ELIGIBLE
 - Only 2023, 2022, 2021, etc. are eligible for "2023 and earlier" requirement
-
 """
 
-{experience_rules}
-part2 = """
+                part2 = """
 
 **JOB DESCRIPTION:**
 {jd}
@@ -205,12 +202,13 @@ The recommendation_score should be a balanced reflection of the relevance_score,
 - "Low": Diploma/No degree
 RETURN ONLY THE JSON OBJECT:
 """
-               # Step 3: सभी हिस्सों को एक साथ जोड़ दें
+                # Step 3: Combine all parts using simple addition
                 final_prompt_text = part1 + experience_rules + part2
-
-               # Step 4: प्रॉम्प्ट बनाएं और चेन को इनिशियलाइज़ करें
+                
+                # Step 4: Create the prompt and initialize the chain
                 analysis_prompt = PromptTemplate.from_template(final_prompt_text)
                 analysis_chain = analysis_prompt | llm
+
                 response = analysis_chain.invoke({"resume": resume_text, "jd": job_description})
                 response_text = response.content
                 # Debug: Show raw response
@@ -354,7 +352,6 @@ Generated on: {time.strftime('%Y-%m-%d %H:%M:%S')}
                 st.text_area("Raw AI Response for debugging:", response_text, height=200)
             except Exception as e:
                 st.error(f"❌ An unexpected error occurred: {str(e)}")
-                # Make sure response_text is defined before being used in an exception
                 if 'response_text' in locals():
                     st.text_area("Raw AI Response for debugging:", response_text, height=200)
                 else:
@@ -368,6 +365,7 @@ st.markdown("""
     <p>Provides realistic scoring based on actual content matching between resume and job requirements</p>
 </div>
 """, unsafe_allow_html=True)
+
 
 
 
