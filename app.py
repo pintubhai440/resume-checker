@@ -130,7 +130,7 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
     if not resume_text.strip() or not job_description.strip():
         st.warning("⚠️ Please provide both the Job Description and the Resume text.")
     else:
-        with st.spinner('🔍 Gemini Pro is performing a deep analysis... This might take a moment.'):
+        with st.spinner('🔍 Gemini is performing a deep analysis... This might take a moment.'):
             # --- BRAIN UPGRADE: Using a more powerful model for higher accuracy ---
             llm = ChatGoogleGenerativeAI(
                 model="gemini-2.5-pro-preview-03-25", 
@@ -145,10 +145,9 @@ if st.button("Analyze with Gemini AI", use_container_width=True, type="primary")
             
             try:
                 # --- FIXED PROMPT: Enhanced with ELIGIBILITY CRITERIA priority ---
-                # Dynamic year calculation added here
-                import datetime
+      import datetime
                 current_year = datetime.datetime.now().year
-                analysis_prompt_template =f"""
+                analysis_prompt_template = f"""
 CRITICAL INSTRUCTIONS: You MUST return ONLY a valid JSON object. No additional text, no explanations, no markdown.
 
 You are an expert Senior Technical Recruiter. Analyze the RESUME against the JOB DESCRIPTION with brutal honesty.
@@ -160,24 +159,22 @@ You are an expert Senior Technical Recruiter. Analyze the RESUME against the JOB
 4. **NO INFERENCES**: If not written, it doesn't exist
 
 **BATCH ELIGIBILITY RULES:**
-- If JD requires "2023 and earlier pass-outs" and candidate passed in 2015 → NOT ELIGIBLE
-- If JD requires "2023 and earlier pass-outs" and candidate passed in 2024 → NOT ELIGIBLE  
+- If JD requires "2023 and earlier pass-outs" and candidate passed in 2015 -> NOT ELIGIBLE
+- If JD requires "2023 and earlier pass-outs" and candidate passed in 2024 -> NOT ELIGIBLE
 - Only 2023, 2022, 2021, etc. are eligible for "2023 and earlier" requirement
 
 **EXPERIENCE LEVEL CALCULATION:**
 - Current Year: {current_year}
 - "Fresher": Graduated in {current_year-1}-{current_year} (0-1 years experience)
-- "Junior": Graduated in {current_year-3}-{current_year-2} (1-3 years experience)  
+- "Junior": Graduated in {current_year-3}-{current_year-2} (1-3 years experience)
 - "Mid-Level": Graduated in {current_year-6}-{current_year-4} (3-6 years experience)
 - "Senior": Graduated in {current_year-7} or earlier (6+ years experience)
-...
-"""
 
 **JOB DESCRIPTION:**
-{jd}
+{{jd}}
 
 **RESUME:**
-{resume}
+{{resume}}
 
 **ANALYSIS OUTPUT - RETURN ONLY THIS JSON:**
 {{
@@ -197,11 +194,11 @@ You are an expert Senior Technical Recruiter. Analyze the RESUME against the JOB
 The recommendation_score should be a balanced reflection of the relevance_score, skills_match, and the severity of missing skills. For intern roles, missing one or two key technologies should lower the score but not necessarily result in a 'Not Recommended' verdict if the foundational skills are strong.
 
 **SCORING GUIDELINES FOR INELIGIBLE CANDIDATES:**
-- If NOT ELIGIBLE due to batch criteria → recommendation_score MUST be 0-25%
-- If NOT ELIGIBLE due to experience mismatch → recommendation_score MUST be 0-30%
-- If ELIGIBLE but missing key skills → recommendation_score 30-60%
-- If GOOD match → recommendation_score 60-85%  
-- If EXCELLENT match → recommendation_score 85-100%
+- If NOT ELIGIBLE due to batch criteria -> recommendation_score MUST be 0-25%
+- If NOT ELIGIBLE due to experience mismatch -> recommendation_score MUST be 0-30%
+- If ELIGIBLE but missing key skills -> recommendation_score 30-60%
+- If GOOD match -> recommendation_score 60-85%
+- If EXCELLENT match -> recommendation_score 85-100%
 
 **EDUCATION LEVELS:**
 - "High": B.Tech/BE/Masters from recognized institute
@@ -367,6 +364,7 @@ st.markdown("""
     <p>Provides realistic scoring based on actual content matching between resume and job requirements</p>
 </div>
 """, unsafe_allow_html=True)
+
 
 
 
