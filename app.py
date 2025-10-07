@@ -768,4 +768,7 @@ PROFESSIONAL ASSESSMENT:
 st.divider()
 st.markdown("""
 <div style='text-align: center; color: #666; font-size: 14px;'>
-    <p>
+    <p>🔍 <strong>AI Resume Checker</strong> | Uses Gemini AI for precise resume analysis</p>
+    <p>Supports both PDF and TXT file formats for resume analysis</p>
+</div>
+""", unsafe_allow_html=True)
