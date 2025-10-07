@@ -38,7 +38,10 @@ def extract_text_from_txt(txt_file):
 
 def get_word_count_status(text):
     """Analyze resume word count with context for freshers."""
-    word_count = len(text.split())
+    # Clean the text first - remove extra whitespaces and count actual words
+    clean_text = re.sub(r'\s+', ' ', text.strip())
+    word_count = len(clean_text.split())
+    
     if word_count < 250:
         return f"⚠️ Too Short ({word_count} words)"
     elif 250 <= word_count <= 600:
@@ -143,6 +146,7 @@ def analyze_single_resume(resume_text, job_description, llm):
 - Calculate total professional work experience from all jobs/internships
 - Full-time roles count as actual duration
 - Internships count as half the duration (e.g., 6-month internship = 3 months experience)
+- Be REALISTIC and CONSERVATIVE in experience calculation
 """
 
         part1 = """CRITICAL INSTRUCTIONS: You MUST return ONLY a valid JSON object. No additional text, no explanations, no markdown.
@@ -150,9 +154,10 @@ You are an expert Senior Technical Recruiter. Analyze the RESUME against the JOB
 
 **STRICT PRIORITY ORDER:**
 1. **ELIGIBILITY CHECK FIRST**: Check graduation year and batch eligibility BEFORE anything else
-2. **EXPERIENCE CALCULATION**: Calculate total work experience from ALL jobs/internships
+2. **EXPERIENCE CALCULATION**: Calculate total work experience from ALL jobs/internships - BE REALISTIC
 3. **TECHNICAL SKILLS**: Only count skills EXPLICITLY mentioned in resume
 4. **NO INFERENCES**: If not written, it doesn't exist
+5. **BE CRITICAL**: Identify weaknesses and missing skills
 
 **BATCH ELIGIBILITY RULES:**
 - If JD requires "2023 and earlier pass-outs" and candidate passed in 2024 -> NOT ELIGIBLE
@@ -163,6 +168,7 @@ You are an expert Senior Technical Recruiter. Analyze the RESUME against the JOB
 - Sum ALL professional experience (jobs + internships)
 - Internships count as 50% of their duration
 - If no dates mentioned, assume no experience
+- Be CONSERVATIVE - don't overestimate
 """
 
         part2 = """
@@ -175,25 +181,54 @@ You are an expert Senior Technical Recruiter. Analyze the RESUME against the JOB
 
 **ANALYSIS OUTPUT - RETURN ONLY THIS JSON:**
 {{
-    "relevance_score": 85,
+    "relevance_score": 75,
     "skills_match": 80,
     "years_experience": "Junior",
     "education_level": "High",
     "matched_skills": ["Python", "SQL"],
-    "missing_skills": ["Spark", "Tableau"],
-    "recommendation_summary": "Candidate meets basic qualifications but lacks key technical skills. Consider for junior roles with training.",
+    "missing_skills": ["NoSQL", "Cloud"],
+    "recommendation_summary": "Good candidate with solid foundation but missing some advanced skills. Consider for junior role.",
     "uses_action_verbs": true,
-    "has_quantifiable_results": true,
-    "recommendation_score": 65
+    "has_quantifiable_results": false,
+    "recommendation_score": 72
 }}
 
-**SCORING GUIDELINES:**
-- **ELIGIBLE + Experience Match + Skills Match 80%+** -> recommendation_score: 85-100%
-- **ELIGIBLE + Experience Match + Skills Match 60-80%** -> recommendation_score: 70-85%
-- **ELIGIBLE + Experience Partial Match + Skills Match 40-60%** -> recommendation_score: 50-70%
-- **ELIGIBLE but NO Experience + Skills Match 40-60%** -> recommendation_score: 30-50%
-- **NOT ELIGIBLE (wrong batch)** -> recommendation_score: 0-25%
-- **ELIGIBLE but COMPLETELY WRONG SKILLS** -> recommendation_score: 0-30%
+**STRICT SCORING GUIDELINES - FOLLOW THESE EXACTLY:**
+
+**RECOMMENDATION SCORE RANGES (MUST FOLLOW):**
+- 90-100%: PERFECT MATCH - All requirements met exactly + extra qualifications
+- 85-89%: EXCELLENT MATCH - All key requirements met, minor gaps
+- 80-84%: STRONG MATCH - Most requirements met, some minor gaps
+- 75-79%: GOOD MATCH - Solid match with some noticeable gaps
+- 70-74%: DECENT MATCH - Meets basic requirements but has significant gaps
+- 60-69%: AVERAGE MATCH - Partial match, major skill/experience gaps
+- 50-59%: WEAK MATCH - Barely meets minimum requirements
+- 40-49%: POOR MATCH - Major deficiencies
+- 30-39%: VERY POOR MATCH - Critical gaps
+- 20-29%: MINIMAL MATCH - Few requirements met
+- 10-19%: ALMOST NO MATCH - Hardly any requirements met
+- 0-9%: NO MATCH - Completely unsuitable
+
+**SKILLS MATCH SCORING:**
+- 100%: All JD skills explicitly mentioned (RARE)
+- 90-99%: Almost all key skills mentioned
+- 80-89%: Most key skills mentioned, missing 1-2 important ones
+- 70-79%: Good skill overlap, missing several important skills
+- 60-69%: Basic skills match, missing many key skills
+- 50-59%: Limited skill overlap
+- Below 50%: Poor skill match
+
+**EXPERIENCE EVALUATION:**
+- Calculate TOTAL realistic experience (jobs + 50% of internships)
+- Compare against JD requirement STRICTLY
+- If JD says "2+ years" and candidate has 1.5 years -> this is a GAP
+
+**MISSING SKILLS IDENTIFICATION:**
+- MUST identify at least 2-3 missing skills unless candidate is perfect
+- Look for skills in JD that are NOT in resume
+- Be specific about what's missing
+
+**BE REALISTIC AND CRITICAL - VERY FEW CANDIDATES SHOULD SCORE ABOVE 85%**
 
 **EDUCATION LEVELS:**
 - "High": B.Tech/BE/Masters from recognized institute
@@ -249,8 +284,10 @@ def display_detailed_result(analysis_result, candidate_name):
     st.subheader(f"🎯 {candidate_name} - Final Verdict: :{rec_color}[{rec_text} ({recommendation_score}%)]")
     st.progress(recommendation_score / 100)
 
-    # Key Metrics
+    # Key Metrics - Fixed layout
+    st.markdown("### 📊 Key Metrics")
     res_col1, res_col2, res_col3, res_col4 = st.columns(4)
+    
     with res_col1:
         st.metric("AI Relevance Score", f"{analysis_result.get('relevance_score', 0)}%")
     with res_col2:
@@ -260,15 +297,41 @@ def display_detailed_result(analysis_result, candidate_name):
     with res_col4:
         st.metric("Education Level", analysis_result.get('education_level', 'Not Specified'))
 
-    # Skills Analysis
-    st.subheader("🔧 Skills Analysis")
+    # Skills Analysis - Fixed layout
+    st.markdown("### 🔧 Skills Analysis")
     skill_col1, skill_col2 = st.columns(2)
     
+    # Add CSS for better skill badges
     st.markdown("""
     <style>
-    .skill-badge { display: inline-block; padding: 6px 12px; margin: 4px; font-size: 0.9em; font-weight: 500; border-radius: 15px; text-align: center; }
-    .matched-skill { background-color: #E0F2E9; color: #0D6938; border: 1px solid #A3D4B6; }
-    .missing-skill { background-color: #FFF3D4; color: #B47D00; border: 1px solid #FFDDA0; }
+    .skill-badge { 
+        display: inline-block; 
+        padding: 6px 12px; 
+        margin: 4px; 
+        font-size: 0.9em; 
+        font-weight: 500; 
+        border-radius: 15px; 
+        text-align: center;
+        white-space: nowrap;
+    }
+    .matched-skill { 
+        background-color: #E0F2E9; 
+        color: #0D6938; 
+        border: 1px solid #A3D4B6; 
+    }
+    .missing-skill { 
+        background-color: #FFF3D4; 
+        color: #B47D00; 
+        border: 1px solid #FFDDA0; 
+    }
+    .skills-container {
+        max-height: 200px;
+        overflow-y: auto;
+        padding: 10px;
+        border: 1px solid #e0e0e0;
+        border-radius: 10px;
+        background-color: #fafafa;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -277,37 +340,62 @@ def display_detailed_result(analysis_result, candidate_name):
         matched_skills = analysis_result.get('matched_skills', [])
         if matched_skills:
             skills_html = "".join([f'<span class="skill-badge matched-skill">{skill}</span>' for skill in matched_skills])
-            st.markdown(f"<div style='line-height: 2.0;'>{skills_html}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='skills-container' style='line-height: 2.0;'>{skills_html}</div>", unsafe_allow_html=True)
         else:
-            st.write("No matching skills found.")
-    
+            st.info("No matching skills found")
+
     with skill_col2:
         st.warning("❗️ Critical Missing Skills")
         missing_skills = analysis_result.get('missing_skills', [])
         if missing_skills:
             skills_html = "".join([f'<span class="skill-badge missing-skill">{skill}</span>' for skill in missing_skills])
-            st.markdown(f"<div style='line-height: 2.0;'>{skills_html}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='skills-container' style='line-height: 2.0;'>{skills_html}</div>", unsafe_allow_html=True)
         else:
-            st.write("No major skill gaps identified.")
+            st.info("No major skill gaps identified")
 
     # Professional Assessment
-    st.subheader("💡 Professional Assessment")
+    st.markdown("### 💡 Professional Assessment")
     st.info(analysis_result.get('recommendation_summary', 'No analysis available.'))
 
-    # Resume Quality Analysis
-    st.subheader("📝 Resume Quality Analysis")
+    # Resume Quality Analysis - Fixed layout
+    st.markdown("### 📝 Resume Quality Analysis")
+    
     action_verbs = "✅ Yes" if analysis_result.get('uses_action_verbs') else "❌ No"
     quant_results = "✅ Yes" if analysis_result.get('has_quantifiable_results') else "❌ No"
     
+    # Fixed metric cards with better styling
     st.markdown("""
     <style>
-    .metric-card { background-color: #F8F9FA; border-radius: 10px; padding: 15px; text-align: center; border: 1px solid #E0E0E0; margin: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-    .metric-card p.label { font-size: 14px; color: #555; margin-bottom: 5px; font-weight: 500; }
-    .metric-card p.value { font-size: 16px; font-weight: bold; color: #333; margin: 0; }
+    .metric-card { 
+        background-color: #F8F9FA; 
+        border-radius: 10px; 
+        padding: 15px; 
+        text-align: center; 
+        border: 1px solid #E0E0E0; 
+        margin: 5px; 
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        height: 100px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+    .metric-card p.label { 
+        font-size: 14px; 
+        color: #555; 
+        margin-bottom: 5px; 
+        font-weight: 500; 
+    }
+    .metric-card p.value { 
+        font-size: 16px; 
+        font-weight: bold; 
+        color: #333; 
+        margin: 0; 
+    }
     </style>
     """, unsafe_allow_html=True)
 
     quality_col1, quality_col2, quality_col3, quality_col4 = st.columns(4)
+    
     with quality_col1:
         st.markdown(f'<div class="metric-card"><p class="label">Word Count</p><p class="value">{analysis_result.get("word_count_status", "N/A")}</p></div>', unsafe_allow_html=True)
     with quality_col2:
@@ -680,7 +768,4 @@ PROFESSIONAL ASSESSMENT:
 st.divider()
 st.markdown("""
 <div style='text-align: center; color: #666; font-size: 14px;'>
-    <p>🔍 <strong>AI Resume Checker</strong> | Uses Gemini AI for precise resume analysis</p>
-    <p>Supports both PDF and TXT file formats for resume analysis</p>
-</div>
-""", unsafe_allow_html=True)
+    <p>
