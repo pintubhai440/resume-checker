@@ -10,8 +10,31 @@ import time
 import datetime
 import pandas as pd
 from io import StringIO
+import PyPDF2
+import tempfile
 
 # --- Helper Functions for Resume Quality Analysis ---
+
+def extract_text_from_pdf(pdf_file):
+    """Extract text from PDF file"""
+    try:
+        pdf_reader = PyPDF2.PdfReader(pdf_file)
+        text = ""
+        for page in pdf_reader.pages:
+            text += page.extract_text()
+        return text
+    except Exception as e:
+        st.error(f"Error reading PDF file: {str(e)}")
+        return None
+
+def extract_text_from_txt(txt_file):
+    """Extract text from TXT file"""
+    try:
+        text = str(txt_file.read(), "utf-8")
+        return text
+    except Exception as e:
+        st.error(f"Error reading TXT file: {str(e)}")
+        return None
 
 def get_word_count_status(text):
     """Analyze resume word count with context for freshers."""
@@ -302,16 +325,48 @@ with tab1:
                                      placeholder="Enter the complete job description with required skills, qualifications, and experience...")
     with col2:
         st.header("👤 Candidate's Resume")
-        resume_text = st.text_area("Paste the Resume Text here", height=350, key="single_resume", 
-                                 placeholder="Enter the complete resume text including education, skills, experience, projects...")
+        resume_option = st.radio("Choose input method:", 
+                               ["📝 Paste Text", "📄 Upload PDF", "📁 Upload TXT"], 
+                               key="single_input_method")
+        
+        if resume_option == "📝 Paste Text":
+            resume_text = st.text_area("Paste the Resume Text here", height=300, key="single_resume", 
+                                     placeholder="Enter the complete resume text including education, skills, experience, projects...")
+        elif resume_option == "📄 Upload PDF":
+            uploaded_pdf = st.file_uploader("Upload PDF Resume", type=['pdf'], key="single_pdf")
+            if uploaded_pdf:
+                resume_text = extract_text_from_pdf(uploaded_pdf)
+                if resume_text:
+                    st.success("✅ PDF uploaded successfully!")
+                    with st.expander("View extracted text from PDF"):
+                        st.text_area("Extracted Text", resume_text, height=200)
+                else:
+                    resume_text = ""
+            else:
+                resume_text = ""
+        else:  # Upload TXT
+            uploaded_txt = st.file_uploader("Upload TXT Resume", type=['txt'], key="single_txt")
+            if uploaded_txt:
+                resume_text = extract_text_from_txt(uploaded_txt)
+                if resume_text:
+                    st.success("✅ TXT file uploaded successfully!")
+                    with st.expander("View text content"):
+                        st.text_area("File Content", resume_text, height=200)
+                else:
+                    resume_text = ""
+            else:
+                resume_text = ""
 
     # --- ANALYSIS BUTTON & LOGIC FOR SINGLE RESUME ---
     if st.button("Analyze with Gemini AI", use_container_width=True, type="primary", key="single_analyze"):
-        if not resume_text.strip() or not job_description.strip():
-            st.warning("⚠️ Please provide both the Job Description and the Resume text.")
+        if not job_description.strip():
+            st.warning("⚠️ Please provide the Job Description.")
+        elif not resume_text.strip():
+            st.warning("⚠️ Please provide the Resume text or upload a file.")
         else:
             with st.spinner('🔍 Gemini is performing a deep analysis... This might take a moment.'):
-                llm = ChatGoogleGeneratoryAI(
+                # --- ORIGINAL MODEL FROM YOUR CODE ---
+                llm = ChatGoogleGenerativeAI(
                     model="gemini-2.5-pro-preview-03-25", 
                     temperature=0.1,
                     safety_settings={
@@ -376,12 +431,12 @@ with tab2:
     
     with batch_col2:
         st.subheader("Upload Resumes")
-        uploaded_files = st.file_uploader("Choose text files with resumes", 
-                                        type=['txt'], 
+        uploaded_files = st.file_uploader("Choose PDF or TXT files with resumes", 
+                                        type=['pdf', 'txt'], 
                                         accept_multiple_files=True,
-                                        help="Upload multiple .txt files containing resume text")
+                                        help="Upload multiple PDF or TXT files containing resumes")
         
-        st.info("💡 **Instructions**: Upload multiple .txt files. Each file should contain one resume. Files should be named meaningfully (e.g., candidate_name.txt)")
+        st.info("💡 **Instructions**: Upload multiple PDF or TXT files. Each file should contain one resume. Files should be named meaningfully (e.g., candidate_name.pdf)")
 
     if st.button("🚀 Analyze All Resumes", use_container_width=True, type="primary", key="batch_analyze"):
         if not batch_job_description.strip():
@@ -390,7 +445,8 @@ with tab2:
             st.warning("⚠️ Please upload at least one resume file.")
         else:
             with st.spinner(f'🔍 Analyzing {len(uploaded_files)} resumes with Gemini AI... This may take several minutes.'):
-                llm = ChatGoogleGeneratoryAI(
+                # --- ORIGINAL MODEL FROM YOUR CODE ---
+                llm = ChatGoogleGenerativeAI(
                     model="gemini-2.5-pro-preview-03-25", 
                     temperature=0.1,
                     safety_settings={
@@ -412,17 +468,25 @@ with tab2:
                         progress_bar.progress(progress)
                         status_text.text(f"Analyzing {i+1}/{len(uploaded_files)}: {uploaded_file.name}")
                         
-                        # Read resume text
-                        resume_text = str(uploaded_file.read(), "utf-8")
+                        # Extract text based on file type
+                        if uploaded_file.type == "application/pdf":
+                            resume_text = extract_text_from_pdf(uploaded_file)
+                        else:  # text/plain
+                            resume_text = extract_text_from_txt(uploaded_file)
                         
+                        if not resume_text:
+                            st.warning(f"⚠️ Could not extract text from {uploaded_file.name}")
+                            continue
+                            
                         # Analyze resume
                         analysis_result = analyze_single_resume(resume_text, batch_job_description, llm)
                         
                         if analysis_result:
                             # Add candidate identifier
-                            candidate_name = uploaded_file.name.replace('.txt', '')
+                            candidate_name = uploaded_file.name.replace('.pdf', '').replace('.txt', '')
                             analysis_result['candidate_name'] = candidate_name
                             analysis_result['file_name'] = uploaded_file.name
+                            analysis_result['file_type'] = uploaded_file.type
                             results.append(analysis_result)
                         
                         # Small delay to avoid rate limiting
@@ -438,11 +502,19 @@ with tab2:
                 if results:
                     st.success(f"✅ Successfully analyzed {len(results)} out of {len(uploaded_files)} resumes")
                     
+                    # Show file type summary
+                    pdf_count = len([r for r in results if r.get('file_type') == 'application/pdf'])
+                    txt_count = len([r for r in results if r.get('file_type') == 'text/plain'])
+                    
+                    if pdf_count > 0 or txt_count > 0:
+                        st.info(f"📊 File types processed: {pdf_count} PDF files, {txt_count} TXT files")
+                    
                     # Create results dataframe for overview
                     df_data = []
                     for result in results:
                         df_data.append({
                             'Candidate': result['candidate_name'],
+                            'File Type': 'PDF' if result.get('file_type') == 'application/pdf' else 'TXT',
                             'Recommendation Score': result['recommendation_score'],
                             'Relevance Score': result['relevance_score'],
                             'Skills Match %': result['skills_match'],
@@ -497,7 +569,7 @@ with tab2:
                     st.write("Below are the detailed analysis reports for each candidate:")
                     
                     # Create tabs for each candidate for better organization
-                    candidate_tabs = st.tabs([f"👤 {result['candidate_name']}" for result in results])
+                    candidate_tabs = st.tabs([f"👤 {result['candidate_name']} ({'PDF' if result.get('file_type') == 'application/pdf' else 'TXT'})" for result in results])
                     
                     for i, (result, tab) in enumerate(zip(results, candidate_tabs)):
                         with tab:
@@ -508,6 +580,7 @@ with tab2:
 RESUME ANALYSIS REPORT
 =====================
 CANDIDATE: {result['candidate_name']}
+FILE TYPE: {'PDF' if result.get('file_type') == 'application/pdf' else 'TXT'}
 FINAL VERDICT: {result.get('recommendation_summary', 'No analysis available')}
 RECOMMENDATION SCORE: {result.get('recommendation_score', 0)}%
 RELEVANCE SCORE: {result.get('relevance_score', 0)}%
@@ -549,6 +622,7 @@ Generated on: {datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 RESUME ANALYSIS REPORT - {result['candidate_name']}
 {"="*50}
 CANDIDATE: {result['candidate_name']}
+FILE TYPE: {'PDF' if result.get('file_type') == 'application/pdf' else 'TXT'}
 FINAL VERDICT: {result.get('recommendation_summary', 'No analysis available')}
 RECOMMENDATION SCORE: {result.get('recommendation_score', 0)}%
 RELEVANCE SCORE: {result.get('relevance_score', 0)}%
@@ -588,7 +662,6 @@ st.divider()
 st.markdown("""
 <div style='text-align: center; color: #666; font-size: 14px;'>
     <p>🔍 <strong>AI Resume Checker</strong> | Uses Gemini AI for precise resume analysis</p>
-    <p>Provides realistic scoring based on actual content matching between resume and job requirements</p>
+    <p>Supports both PDF and TXT file formats for resume analysis</p>
 </div>
 """, unsafe_allow_html=True)
-
