@@ -133,24 +133,36 @@ def analyze_single_resume(resume_text, job_description, llm):
     """Analyze a single resume against job description"""
     try:
         current_year = datetime.datetime.now().year
-        experience_rules = f"""**EXPERIENCE LEVEL CALCULATION:**
-- Current Year: {current_year}
-- "Fresher": Graduated in {current_year-1}-{current_year} (0-1 years experience)
-- "Junior": Graduated in {current_year-3}-{current_year-2} (1-3 years experience)
-- "Mid-Level": Graduated in {current_year-6}-{current_year-4} (3-6 years experience)
-- "Senior": Graduated in {current_year-7} or earlier (6+ years experience)"""
+        experience_rules = f"""**EXPERIENCE LEVEL CALCULATION (Current Year: {current_year}):**
+- "Fresher": 0-1 years experience OR currently studying
+- "Junior": 1-3 years experience 
+- "Mid-Level": 3-6 years experience
+- "Senior": 6+ years experience
+
+**WORK EXPERIENCE CALCULATION:**
+- Calculate total professional work experience from all jobs/internships
+- Full-time roles count as actual duration
+- Internships count as half the duration (e.g., 6-month internship = 3 months experience)
+"""
 
         part1 = """CRITICAL INSTRUCTIONS: You MUST return ONLY a valid JSON object. No additional text, no explanations, no markdown.
 You are an expert Senior Technical Recruiter. Analyze the RESUME against the JOB DESCRIPTION with brutal honesty.
+
 **STRICT PRIORITY ORDER:**
 1. **ELIGIBILITY CHECK FIRST**: Check graduation year and batch eligibility BEFORE anything else
-2. **EXPERIENCE LEVEL**: Determine based on graduation year and work experience
+2. **EXPERIENCE CALCULATION**: Calculate total work experience from ALL jobs/internships
 3. **TECHNICAL SKILLS**: Only count skills EXPLICITLY mentioned in resume
 4. **NO INFERENCES**: If not written, it doesn't exist
+
 **BATCH ELIGIBILITY RULES:**
-- If JD requires "2023 and earlier pass-outs" and candidate passed in 2015 -> NOT ELIGIBLE
 - If JD requires "2023 and earlier pass-outs" and candidate passed in 2024 -> NOT ELIGIBLE
-- Only 2023, 2022, 2021, etc. are eligible for "2023 and earlier" requirement
+- If JD requires "2023 and earlier pass-outs" and candidate passed in 2022 -> ELIGIBLE
+- Only check graduation/passing year mentioned in resume
+
+**EXPERIENCE CALCULATION RULES:**
+- Sum ALL professional experience (jobs + internships)
+- Internships count as 50% of their duration
+- If no dates mentioned, assume no experience
 """
 
         part2 = """
@@ -165,7 +177,7 @@ You are an expert Senior Technical Recruiter. Analyze the RESUME against the JOB
 {{
     "relevance_score": 85,
     "skills_match": 80,
-    "years_experience": "Fresher",
+    "years_experience": "Junior",
     "education_level": "High",
     "matched_skills": ["Python", "SQL"],
     "missing_skills": ["Spark", "Tableau"],
@@ -174,18 +186,20 @@ You are an expert Senior Technical Recruiter. Analyze the RESUME against the JOB
     "has_quantifiable_results": true,
     "recommendation_score": 65
 }}
-**SCORING LOGIC:**
-The recommendation_score should be a balanced reflection of the relevance_score, skills_match, and the severity of missing skills. For intern roles, missing one or two key technologies should lower the score but not necessarily result in a 'Not Recommended' verdict if the foundational skills are strong.
-**SCORING GUIDELINES FOR INELIGIBLE CANDIDATES:**
-- If NOT ELIGIBLE due to batch criteria -> recommendation_score MUST be 0-25%
-- If NOT ELIGIBLE due to experience mismatch -> recommendation_score MUST be 0-30%
-- If ELIGIBLE but missing key skills -> recommendation_score 30-60%
-- If GOOD match -> recommendation_score 60-85%
-- If EXCELLENT match -> recommendation_score 85-100%
+
+**SCORING GUIDELINES:**
+- **ELIGIBLE + Experience Match + Skills Match 80%+** -> recommendation_score: 85-100%
+- **ELIGIBLE + Experience Match + Skills Match 60-80%** -> recommendation_score: 70-85%
+- **ELIGIBLE + Experience Partial Match + Skills Match 40-60%** -> recommendation_score: 50-70%
+- **ELIGIBLE but NO Experience + Skills Match 40-60%** -> recommendation_score: 30-50%
+- **NOT ELIGIBLE (wrong batch)** -> recommendation_score: 0-25%
+- **ELIGIBLE but COMPLETELY WRONG SKILLS** -> recommendation_score: 0-30%
+
 **EDUCATION LEVELS:**
 - "High": B.Tech/BE/Masters from recognized institute
-- "Medium": Bachelor's degree
+- "Medium": Bachelor's degree from any college
 - "Low": Diploma/No degree
+
 RETURN ONLY THE JSON OBJECT:
 """
         final_prompt_text = part1 + experience_rules + part2
@@ -196,8 +210,13 @@ RETURN ONLY THE JSON OBJECT:
         response = analysis_chain.invoke({"resume": resume_text, "jd": job_description})
         response_text = response.content
         
+        # Debug: Show raw response
+        with st.expander("🔧 Debug: Raw AI Response"):
+            st.code(response_text)
+        
         cleaned_json = clean_json_response(response_text)
         if not cleaned_json:
+            st.error("❌ Could not extract JSON from AI response")
             return None
             
         analysis_result = json.loads(cleaned_json)
