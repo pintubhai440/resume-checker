@@ -3,7 +3,7 @@ import streamlit as st
 import os
 import json
 import re
-from langchain_google_genai import ChatGoogleGeneratoryAI, HarmBlockThreshold, HarmCategory
+from langchain_google_genai import ChatGoogleGenerativeAI, HarmBlockThreshold, HarmCategory
 from langchain.prompts import PromptTemplate
 from collections import Counter
 import time
@@ -591,3 +591,4 @@ st.markdown("""
     <p>Provides realistic scoring based on actual content matching between resume and job requirements</p>
 </div>
 """, unsafe_allow_html=True)
+
