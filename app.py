@@ -42,9 +42,9 @@ def get_word_count_status(text):
     clean_text = re.sub(r'\s+', ' ', text.strip())
     word_count = len(clean_text.split())
     
-    if word_count < 250:
+    if word_count < 200:
         return f"⚠️ Too Short ({word_count} words)"
-    elif 250 <= word_count <= 600:
+    elif 200 <= word_count <= 600:
         return f"✅ Optimal Length ({word_count} words)"
     else:
         return f"⚠️ Too Long ({word_count} words)"
@@ -845,3 +845,4 @@ st.markdown("""
     <p>Supports both PDF and TXT file formats for resume analysis</p>
 </div>
 """, unsafe_allow_html=True)
+
