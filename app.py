@@ -538,7 +538,7 @@ with tab1:
             with st.spinner('🔍 Gemini is performing a deep analysis... This might take a moment.'):
                 # --- ORIGINAL MODEL FROM YOUR CODE ---
                 llm = ChatGoogleGenerativeAI(
-                    model="gemini-2.5-flash-preview-05-20", 
+                    model="gemini-2.5-pro-preview-03-25", 
                     temperature=0.1,
                     safety_settings={
                         HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
@@ -621,7 +621,7 @@ with tab2:
             with st.spinner(f'🔍 Analyzing {len(uploaded_files)} resumes with Gemini AI... This may take several minutes.'):
                 # --- ORIGINAL MODEL FROM YOUR CODE ---
                 llm = ChatGoogleGenerativeAI(
-                    model="gemini-2.5-flash-preview-05-20", 
+                    model="gemini-2.5-pro-preview-03-25", 
                     temperature=0.1,
                     safety_settings={
                         HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
@@ -845,6 +845,7 @@ st.markdown("""
     <p>Supports both PDF and TXT file formats for resume analysis</p>
 </div>
 """, unsafe_allow_html=True)
+
 
 
 
