@@ -107,6 +107,56 @@ def clean_json_response(response_text):
         st.error(f"JSON cleaning error: {str(e)}")
         return None
 
+def get_improvement_suggestions(job_description, analysis_result, llm):
+    """Generate improvement suggestions using a separate, focused AI call."""
+    try:
+        # AI ko context dene ke liye analysis se summary banayein
+        score = analysis_result.get('recommendation_score', 0)
+        missing_skills = ", ".join(analysis_result.get('missing_skills', [])) or "None"
+        summary = analysis_result.get('recommendation_summary', 'N/A')
+        experience = analysis_result.get('years_experience', 'N/A')
+
+        suggestion_prompt_template = """
+        You are a constructive and encouraging career coach providing feedback to a job applicant.
+
+        **CONTEXT OF THE ANALYSIS:**
+        - **Job Description Summary:** {jd}
+        - **Candidate's Recommendation Score:** {score}%
+        - **Key Missing Skills Identified:** {missing_skills}
+        - **Candidate's Experience Level:** {experience}
+        - **Recruiter's Assessment Summary:** {summary}
+
+        **YOUR TASK:**
+        Based on the context above, provide actionable improvement suggestions for the candidate. Address them directly in the second person ("You should...", "Consider...").
+
+        - **If the score is below 60% (Not a good fit):** Focus on the most critical gaps. Provide a clear, step-by-step roadmap for what they need to learn or do to qualify for such roles in the future. Be direct but supportive.
+        - **If the score is 60% or higher (A good fit):** Focus on suggestions that will make them an even stronger candidate. Suggest advanced skills, relevant certifications, or ways to better showcase their achievements.
+
+        **OUTPUT FORMAT (Strictly follow this):**
+        1. Start with a brief, encouraging summary sentence (1 line).
+        2. Follow with 2-4 specific, actionable bullet points in Markdown format.
+        3. Keep the entire response concise and to the point. DO NOT add any extra text or explanations.
+
+        **GENERATE SUGGESTIONS NOW:**
+        """
+
+        suggestion_prompt = PromptTemplate.from_template(suggestion_prompt_template)
+        suggestion_chain = suggestion_prompt | llm
+
+        response = suggestion_chain.invoke({
+            "jd": job_description[:500],  # JD ka summary use karein
+            "score": score,
+            "missing_skills": missing_skills,
+            "summary": summary,
+            "experience": experience
+        })
+
+        return response.content
+
+    except Exception as e:
+        st.warning(f"Could not generate improvement suggestions: {str(e)}")
+        return "Suggestions could not be generated at this time."
+
 def validate_analysis_result(result):
     """Ensure the analysis result has all required fields with proper defaults."""
     required_fields = {
@@ -119,7 +169,8 @@ def validate_analysis_result(result):
         'recommendation_summary': 'Analysis incomplete.',
         'uses_action_verbs': False,
         'has_quantifiable_results': False,
-        'recommendation_score': 0
+        'recommendation_score': 0,
+        'improvement_suggestions': 'No suggestions generated.'
     }
     
     validated_result = required_fields.copy()
@@ -256,6 +307,11 @@ RETURN ONLY THE JSON OBJECT:
             
         analysis_result = json.loads(cleaned_json)
         analysis_result = validate_analysis_result(analysis_result)
+        
+        # Analysis ke basis par improvement suggestions generate karein
+        with st.spinner('💡 Generating personalized improvement suggestions...'):
+            suggestions = get_improvement_suggestions(job_description, analysis_result, llm)
+            analysis_result['improvement_suggestions'] = suggestions
         
         # Add quality metrics
         analysis_result['word_count_status'] = get_word_count_status(resume_text)
@@ -405,6 +461,14 @@ def display_detailed_result(analysis_result, candidate_name):
     with quality_col4:
         st.markdown(f'<div class="metric-card"><p class="label">Quantifiable Results</p><p class="value">{quant_results}</p></div>', unsafe_allow_html=True)
 
+    # Improvement Suggestions ko display karein
+    st.markdown("### 🌱 Improvement Suggestions")
+    suggestions = analysis_result.get('improvement_suggestions', 'No suggestions available.')
+    if "Suggestions could not be generated" in suggestions or not suggestions:
+        st.warning(suggestions or "No suggestions were generated for this candidate.")
+    else:
+        st.success(suggestions) # 'success' box se yeh constructive lagega
+
     st.divider()
 
 # --- UI SETUP ---
@@ -509,6 +573,9 @@ RESUME QUALITY:
 - Repetition: {analysis_result.get('repetition_status', 'N/A')}
 - Action Verbs: {'Yes' if analysis_result.get('uses_action_verbs') else 'No'}
 - Quantifiable Results: {'Yes' if analysis_result.get('has_quantifiable_results') else 'No'}
+
+IMPROVEMENT SUGGESTIONS:
+{analysis_result.get('improvement_suggestions', 'No suggestions available.')}
 
 PROFESSIONAL ASSESSMENT:
 {analysis_result.get('recommendation_summary', 'No analysis available')}
@@ -704,6 +771,9 @@ RESUME QUALITY:
 - Action Verbs: {'Yes' if result.get('uses_action_verbs') else 'No'}
 - Quantifiable Results: {'Yes' if result.get('has_quantifiable_results') else 'No'}
 
+IMPROVEMENT SUGGESTIONS:
+{result.get('improvement_suggestions', 'No suggestions available.')}
+
 PROFESSIONAL ASSESSMENT:
 {result.get('recommendation_summary', 'No analysis available')}
 
@@ -745,6 +815,9 @@ RESUME QUALITY:
 - Repetition: {result.get('repetition_status', 'N/A')}
 - Action Verbs: {'Yes' if result.get('uses_action_verbs') else 'No'}
 - Quantifiable Results: {'Yes' if result.get('has_quantifiable_results') else 'No'}
+
+IMPROVEMENT SUGGESTIONS:
+{result.get('improvement_suggestions', 'No suggestions available.')}
 
 PROFESSIONAL ASSESSMENT:
 {result.get('recommendation_summary', 'No analysis available')}
